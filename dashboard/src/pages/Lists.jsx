@@ -14,15 +14,18 @@ import { cn, formatNumber } from '../lib/utils'
 // Recommended blocklists
 const RECOMMENDED_LISTS = [
   { url: 'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts', category: 'ads', domains: 180000 },
+  { url: 'https://raw.githubusercontent.com/oisd-blocklist/oisd/master/domains', category: 'ads', domains: 100000 },
+  { url: 'https://v.firebog.net/hosts/Easyprivacy.txt', category: 'tracking', domains: 15000 },
+  { url: 'https://v.firebog.net/hosts/Prigent-Ads.txt', category: 'ads', domains: 50000 },
+  { url: 'https://v.firebog.net/hosts/Prigent-Tracking.txt', category: 'tracking', domains: 30000 },
+  { url: 'https://raw.githubusercontent.com/Perflyst/PiHoleBlocklist/master/SmartTV.txt', category: 'tracking', domains: 5000 },
+  { url: 'https://raw.githubusercontent.com/Perflyst/PiHoleBlocklist/master/AmazonFireTV.txt', category: 'tracking', domains: 3000 },
   { url: 'https://v.firebog.net/hosts/AdguardDNS.txt', category: 'ads', domains: 45000 },
   { url: 'https://v.firebog.net/hosts/Easylist.txt', category: 'ads', domains: 32000 },
-  { url: 'https://v.firebog.net/hosts/Easyprivacy.txt', category: 'tracking', domains: 15000 },
   { url: 'https://raw.githubusercontent.com/anudeepND/blacklist/master/adservers.txt', category: 'ads', domains: 48000 },
   { url: 'https://phishing.army/download/phishing_army_blocklist_extended.txt', category: 'phishing', domains: 12000 },
   { url: 'https://v.firebog.net/hosts/Prigent-Crypto.txt', category: 'crypto', domains: 8000 },
-  { url: 'https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/spy.txt', category: 'tracking', domains: 3500 },
-  { url: 'https://v.firebog.net/hosts/Prigent-Malware.txt', category: 'malware', domains: 25000 },
-  { url: 'https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20versions%20Anti-Malware%20List/AntiMalwareHosts.txt', category: 'malware', domains: 8500 }
+  { url: 'https://v.firebog.net/hosts/Prigent-Malware.txt', category: 'malware', domains: 25000 }
 ]
 
 export function Lists() {

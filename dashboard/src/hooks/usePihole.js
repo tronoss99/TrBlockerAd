@@ -342,7 +342,9 @@ export function useLists() {
   const fetchLists = useCallback(async () => {
     try {
       const data = await apiCall('/lists')
-      setLists(data.lists || [])
+      // Pi-hole v6 returns lists in different formats
+      const listsArray = data.lists || data.adlists || []
+      setLists(Array.isArray(listsArray) ? listsArray : Object.values(listsArray))
     } catch (err) {
       console.error('Failed to fetch lists:', err)
       setLists([])
@@ -353,15 +355,31 @@ export function useLists() {
 
   const addList = useCallback(async (url, comment = '') => {
     try {
+      // Pi-hole v6 API format for adding lists
       await apiCall('/lists', {
         method: 'POST',
-        body: JSON.stringify({ address: url, comment, enabled: true })
+        body: JSON.stringify({ 
+          address: url,
+          enabled: true,
+          comment: comment || ''
+        })
       })
       await fetchLists()
       return true
     } catch (err) {
       console.error('Failed to add list:', err)
-      return false
+      // Try alternative format
+      try {
+        await apiCall('/lists', {
+          method: 'POST', 
+          body: JSON.stringify({ url, enabled: true })
+        })
+        await fetchLists()
+        return true
+      } catch (err2) {
+        console.error('Alternative format also failed:', err2)
+        return false
+      }
     }
   }, [fetchLists])
 
@@ -398,7 +416,20 @@ export function useLists() {
 }
 
 export async function runGravityUpdate() {
-  return apiCall('/action/gravity', { method: 'POST' })
+  try {
+    const res = await fetch(`${API_BASE}/action/gravity`, { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    // Gravity returns text output, not JSON
+    if (!res.ok) {
+      throw new Error(`Gravity update failed: ${res.status}`)
+    }
+    return { success: true }
+  } catch (err) {
+    console.error('Gravity update error:', err)
+    throw err
+  }
 }
 
 export async function flushCache() {

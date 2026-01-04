@@ -3,3 +3,7 @@ port = "8080"
 
 [webserver.api]
 password = ""
+
+[webserver.session]
+# Disable CSP to allow our custom dashboard
+csp = false
