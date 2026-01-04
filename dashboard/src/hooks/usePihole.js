@@ -303,11 +303,21 @@ export function useSystemInfo() {
   const fetchInfo = useCallback(async () => {
     try {
       const data = await apiCall('/info/version')
+      
+      // Pi-hole v6 returns version as object with core, web, ftl, docker keys
+      // Each can be a string or an object with version property
+      const getVersion = (v) => {
+        if (!v) return 'v6.x'
+        if (typeof v === 'string') return v
+        if (typeof v === 'object' && v.version) return v.version
+        return 'v6.x'
+      }
+
       setInfo({
         version: {
-          core: data.version || 'v6.x',
-          ftl: data.ftl?.version || 'v6.x',
-          web: data.web?.version || 'v6.x'
+          core: getVersion(data.core || data.version),
+          ftl: getVersion(data.ftl),
+          web: getVersion(data.web)
         },
         branch: data.branch || 'main'
       })
