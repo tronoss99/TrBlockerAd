@@ -398,3 +398,66 @@ export async function flushCache() {
 export async function restartDns() {
   return apiCall('/dns/restart', { method: 'POST' })
 }
+
+export function useClients() {
+  const [clients, setClients] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchClients = useCallback(async () => {
+    try {
+      // Try multiple endpoints for Pi-hole v6
+      const [topClients, clientsData] = await Promise.all([
+        apiCall('/stats/top_clients?count=50').catch(() => null),
+        apiCall('/clients').catch(() => null)
+      ])
+
+      let clientList = []
+
+      // Process top_clients endpoint
+      if (topClients?.top_clients && Array.isArray(topClients.top_clients)) {
+        clientList = topClients.top_clients.map(c => ({
+          ip: c.ip || '',
+          name: c.name || c.ip || '',
+          queries: c.count || 0,
+          blocked: c.blocked || 0
+        }))
+      } else if (topClients?.clients && Array.isArray(topClients.clients)) {
+        clientList = topClients.clients.map(c => ({
+          ip: c.ip || '',
+          name: c.name || c.ip || '',
+          queries: c.count || c.queries || 0,
+          blocked: c.blocked || 0
+        }))
+      }
+
+      // If no data from top_clients, try /clients endpoint
+      if (clientList.length === 0 && clientsData?.clients) {
+        const clientsArray = Array.isArray(clientsData.clients) 
+          ? clientsData.clients 
+          : Object.values(clientsData.clients)
+        
+        clientList = clientsArray.map(c => ({
+          ip: c.ip || c.address || '',
+          name: c.name || c.hostname || c.ip || '',
+          queries: c.count || c.queries || 0,
+          blocked: c.blocked || 0
+        }))
+      }
+
+      setClients(clientList)
+    } catch (err) {
+      console.error('Failed to fetch clients:', err)
+      setClients([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchClients()
+    const interval = setInterval(fetchClients, 10000)
+    return () => clearInterval(interval)
+  }, [fetchClients])
+
+  return { clients, loading, refresh: fetchClients }
+}

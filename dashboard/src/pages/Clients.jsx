@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useState } from 'react'
 import { Users, Activity, Ban, Search } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
@@ -7,24 +7,12 @@ import { Input } from '../components/ui/Input'
 import { Skeleton } from '../components/ui/Skeleton'
 import { useLanguage } from '../context/LanguageContext'
 import { formatNumber } from '../lib/utils'
-import { useState } from 'react'
+import { useClients } from '../hooks/usePihole'
 
-export function Clients({ data, loading }) {
+export function Clients() {
   const { t } = useLanguage()
+  const { clients, loading } = useClients()
   const [search, setSearch] = useState('')
-
-  const clients = useMemo(() => {
-    if (!data?.clients?.top_sources) return []
-    return Object.entries(data.clients.top_sources).map(([client, queries]) => {
-      const [ip, name] = client.split('|')
-      return { 
-        ip, 
-        name: name || ip, 
-        queries, 
-        blocked: Math.floor(queries * (data?.summary?.ads_percentage_today || 15) / 100)
-      }
-    }).sort((a, b) => b.queries - a.queries)
-  }, [data])
 
   const filteredClients = clients.filter(c => 
     c.name.toLowerCase().includes(search.toLowerCase()) ||
