@@ -89,10 +89,10 @@ export function Sidebar({ currentPage, onNavigate }) {
             <select
               value={lang}
               onChange={(e) => setLang(e.target.value)}
-              className="bg-transparent text-sm focus:outline-none cursor-pointer"
+              className="bg-card text-sm text-foreground border border-input rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer [&>option]:bg-card [&>option]:text-foreground"
             >
               {Object.entries(languageNames).map(([code, name]) => (
-                <option key={code} value={code} className="bg-card">{name}</option>
+                <option key={code} value={code}>{name}</option>
               ))}
             </select>
           </div>
