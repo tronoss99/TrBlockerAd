@@ -23,16 +23,13 @@ COPY dashboard/dist/ /var/www/trblocker/
 # Copy nginx config
 COPY nginx-pihole.conf /etc/nginx/http.d/default.conf
 
-# Create nginx run directory
-RUN mkdir -p /run/nginx
+# Create nginx directories
+RUN mkdir -p /run/nginx /var/log/nginx
 
-# Create s6 service for nginx
-RUN mkdir -p /etc/s6-overlay/s6-rc.d/nginx/dependencies.d \
-    /etc/s6-overlay/s6-rc.d/user/contents.d && \
-    echo "longrun" > /etc/s6-overlay/s6-rc.d/nginx/type && \
-    printf '#!/command/execlineb -P\nnginx -g "daemon off;"\n' > /etc/s6-overlay/s6-rc.d/nginx/run && \
-    chmod +x /etc/s6-overlay/s6-rc.d/nginx/run && \
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/nginx
+# Create cont-init script to start nginx (runs during container init)
+RUN mkdir -p /etc/cont-init.d && \
+    printf '#!/bin/sh\nnginx\n' > /etc/cont-init.d/99-start-nginx && \
+    chmod +x /etc/cont-init.d/99-start-nginx
 
 EXPOSE 53/tcp 53/udp 80/tcp
 
