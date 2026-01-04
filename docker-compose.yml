@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  trblocker:
+    image: ghcr.io/tronoss99/TrBlockerAd:latest
+    container_name: TrBlockerAd
+    env_file:
+      - .env
+    environment:
+      - TZ=${TZ:-Europe/Madrid}
+      - WEBPASSWORD=${WEBPASSWORD}
+      - PIHOLE_DNS_=${PIHOLE_DNS:-1.1.1.1;1.0.0.1;8.8.8.8;8.8.4.4}
+      - DNSSEC=${DNSSEC:-true}
+      - QUERY_LOGGING=${QUERY_LOGGING:-true}
+      - FTLCONF_MAXDBDAYS=${LOG_RETENTION_DAYS:-365}
+    volumes:
+      - ./data/pihole:/etc/pihole
+      - ./data/dnsmasq:/etc/dnsmasq.d
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "3000:80"
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
