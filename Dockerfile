@@ -8,9 +8,8 @@ LABEL org.opencontainers.image.authors="tronoss99"
 ENV TZ=Europe/Madrid
 ENV DNSSEC=true
 ENV QUERY_LOGGING=true
-ENV FTLCONF_MAXDBDAYS=365
-ENV WEB_PORT=8080
 ENV WEBTHEME=default-dark
+ENV FTLCONF_webserver_port=8080
 
 COPY pihole/adlists.list /etc/pihole/adlists.list
 COPY pihole/custom.list /etc/pihole/custom.list
