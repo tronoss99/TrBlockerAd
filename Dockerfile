@@ -9,24 +9,26 @@ ENV TZ=Europe/Madrid
 ENV DNSSEC=true
 ENV QUERY_LOGGING=true
 ENV FTLCONF_MAXDBDAYS=365
+ENV WEB_PORT=8080
 
 COPY pihole/adlists.list /etc/pihole/adlists.list
 COPY pihole/custom.list /etc/pihole/custom.list
 
-# Remove Pi-hole's blocking lighttpd configs that interfere with our dashboard
-RUN rm -f /etc/lighttpd/conf-enabled/15-pihole-admin.conf 2>/dev/null || true
-RUN rm -f /etc/lighttpd/conf-enabled/15-fastcgi-php.conf 2>/dev/null || true
+# Install nginx
+RUN apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/*
 
-# Remove Pi-hole default interface but keep admin folder for API
-RUN rm -rf /var/www/html/index.html /var/www/html/index.php /var/www/html/pihole 2>/dev/null || true
+# Copy our dashboard
+COPY dashboard/dist/ /var/www/trblocker/
 
-# Copy our dashboard to root
-COPY dashboard/dist/ /var/www/html/
+# Copy nginx config
+COPY nginx-pihole.conf /etc/nginx/sites-available/default
 
-# Copy our lighttpd config
-COPY nginx-pihole.conf /etc/lighttpd/conf-enabled/99-trblocker.conf
+# Create startup script
+RUN echo '#!/bin/bash\nnginx\nexec /s6-init' > /start-trblocker.sh && chmod +x /start-trblocker.sh
 
 EXPOSE 53/tcp 53/udp 80/tcp
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD dig +norecurse +retry=0 @127.0.0.1 pi.hole || exit 1
+
+ENTRYPOINT ["/start-trblocker.sh"]
