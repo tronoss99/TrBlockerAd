@@ -374,34 +374,49 @@ export function useLists() {
   }, [])
 
   const addList = useCallback(async (url, comment = '') => {
-    // Pi-hole v6 requires type: "block" for blocklists
-    const body = {
-      address: url,
-      enabled: true,
-      type: 'block',
-      comment: comment || ''
+    // Pi-hole v6 API - try multiple endpoint/format combinations
+    const endpoints = [
+      // Try /lists with type in body
+      { 
+        url: `${API_BASE}/lists`,
+        body: { address: url, enabled: true, type: 'block', comment: comment || '' }
+      },
+      // Try /lists/block endpoint
+      {
+        url: `${API_BASE}/lists/block`,
+        body: { address: url, enabled: true, comment: comment || '' }
+      },
+      // Try with item wrapper
+      {
+        url: `${API_BASE}/lists`,
+        body: { item: url, type: 'block', enabled: true, comment: comment || '' }
+      }
+    ]
+
+    for (const endpoint of endpoints) {
+      try {
+        console.log('Trying endpoint:', endpoint.url, 'with body:', endpoint.body)
+        const res = await fetch(endpoint.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(endpoint.body)
+        })
+        
+        if (res.ok || res.status === 201) {
+          console.log('List added successfully:', url)
+          await fetchLists()
+          return true
+        }
+        
+        const errorText = await res.text().catch(() => '')
+        console.log(`Endpoint ${endpoint.url} failed (${res.status}):`, errorText)
+      } catch (err) {
+        console.log(`Endpoint ${endpoint.url} error:`, err.message)
+      }
     }
 
-    try {
-      const res = await fetch(`${API_BASE}/lists`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      })
-      
-      if (res.ok || res.status === 201) {
-        console.log('List added successfully:', url)
-        await fetchLists()
-        return true
-      }
-      
-      const errorText = await res.text().catch(() => '')
-      console.error(`Failed to add list (${res.status}):`, errorText)
-      return false
-    } catch (err) {
-      console.error('Error adding list:', err.message)
-      return false
-    }
+    console.error('All endpoints failed for adding list')
+    return false
   }, [fetchLists])
 
   const removeList = useCallback(async (id) => {
