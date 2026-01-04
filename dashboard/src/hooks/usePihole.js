@@ -91,17 +91,29 @@ export function usePihole(refreshInterval = 5000) {
       // Process query types
       const queryTypesData = { querytypes: {} }
       if (queryTypes?.types) {
-        queryTypes.types.forEach(item => {
-          queryTypesData.querytypes[item.type] = item.count
-        })
+        if (Array.isArray(queryTypes.types)) {
+          queryTypes.types.forEach(item => {
+            queryTypesData.querytypes[item.type] = item.count
+          })
+        } else if (typeof queryTypes.types === 'object') {
+          Object.entries(queryTypes.types).forEach(([type, count]) => {
+            queryTypesData.querytypes[type] = count
+          })
+        }
       }
 
       // Process upstreams
       const forwarded = { forward_destinations: {} }
       if (upstreams?.upstreams) {
-        upstreams.upstreams.forEach(item => {
-          forwarded.forward_destinations[item.ip] = item.percentage
-        })
+        if (Array.isArray(upstreams.upstreams)) {
+          upstreams.upstreams.forEach(item => {
+            forwarded.forward_destinations[item.ip] = item.percentage
+          })
+        } else if (typeof upstreams.upstreams === 'object') {
+          Object.entries(upstreams.upstreams).forEach(([ip, percentage]) => {
+            forwarded.forward_destinations[ip] = percentage
+          })
+        }
       }
 
       setData({
