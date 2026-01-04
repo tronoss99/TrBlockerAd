@@ -10,12 +10,11 @@ ENV DNSSEC=true
 ENV QUERY_LOGGING=true
 ENV WEBTHEME=default-dark
 ENV FTLCONF_webserver_port=8080
-ENV FTLCONF_webserver_api_pwhash=
 
 COPY pihole/adlists.list /etc/pihole/adlists.list
 COPY pihole/custom.list /etc/pihole/custom.list
 
-# Install nginx and supervisor
+# Install nginx
 RUN apk add --no-cache nginx
 
 # Copy our dashboard
@@ -27,13 +26,13 @@ COPY nginx-pihole.conf /etc/nginx/http.d/default.conf
 # Create nginx directories
 RUN mkdir -p /run/nginx /var/log/nginx
 
-# Create a custom startup script
-COPY start.sh /usr/local/bin/start.sh
-RUN chmod +x /usr/local/bin/start.sh
+# Add nginx startup to bashrc so it runs when container starts
+RUN echo 'pgrep nginx > /dev/null || nginx' >> /etc/bash/bashrc
+
+# Create a simple cron job to ensure nginx is running
+RUN echo '* * * * * pgrep nginx > /dev/null || nginx' > /etc/crontabs/root
 
 EXPOSE 53/tcp 53/udp 80/tcp
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD dig +norecurse +retry=0 @127.0.0.1 pi.hole || exit 1
-
-ENTRYPOINT ["/usr/local/bin/start.sh"]
