@@ -13,8 +13,17 @@ ENV FTLCONF_MAXDBDAYS=365
 COPY pihole/adlists.list /etc/pihole/adlists.list
 COPY pihole/custom.list /etc/pihole/custom.list
 
-COPY dashboard/dist /var/www/html/custom
-COPY nginx-pihole.conf /etc/lighttpd/conf-enabled/99-trblocker.conf
+# Backup Pi-hole admin API, then replace with our dashboard
+RUN mkdir -p /var/www/html/admin-api
+RUN cp /var/www/html/admin/api.php /var/www/html/admin-api/ 2>/dev/null || true
+RUN cp -r /var/www/html/admin/scripts /var/www/html/admin-api/ 2>/dev/null || true
+
+# Remove Pi-hole default interface
+RUN rm -rf /var/www/html/admin/index.php /var/www/html/admin/style /var/www/html/admin/img 2>/dev/null || true
+RUN rm -rf /var/www/html/index.html /var/www/html/index.php /var/www/html/pihole 2>/dev/null || true
+
+# Copy our dashboard to root
+COPY dashboard/dist/ /var/www/html/
 
 EXPOSE 53/tcp 53/udp 80/tcp
 
