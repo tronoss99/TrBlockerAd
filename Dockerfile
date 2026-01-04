@@ -14,17 +14,17 @@ ENV WEB_PORT=8080
 COPY pihole/adlists.list /etc/pihole/adlists.list
 COPY pihole/custom.list /etc/pihole/custom.list
 
-# Install nginx
-RUN apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/*
+# Install nginx (Alpine uses apk)
+RUN apk add --no-cache nginx
 
 # Copy our dashboard
 COPY dashboard/dist/ /var/www/trblocker/
 
 # Copy nginx config
-COPY nginx-pihole.conf /etc/nginx/sites-available/default
+COPY nginx-pihole.conf /etc/nginx/http.d/default.conf
 
-# Create startup script
-RUN echo '#!/bin/bash\nnginx\nexec /s6-init' > /start-trblocker.sh && chmod +x /start-trblocker.sh
+# Create startup script that starts nginx then Pi-hole
+RUN printf '#!/bin/bash\nnginx\nexec /s6-init\n' > /start-trblocker.sh && chmod +x /start-trblocker.sh
 
 EXPOSE 53/tcp 53/udp 80/tcp
 
