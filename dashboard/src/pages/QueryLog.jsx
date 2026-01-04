@@ -61,6 +61,14 @@ export function QueryLog() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [isRefreshing, setIsRefreshing] = useState(false)
 
+  const filterOptions = [
+    { value: 'all', label: t('queryLog.filter') },
+    { value: 'blocked', label: t('queryLog.blocked') },
+    { value: 'allowed', label: t('queryLog.allowed') },
+    { value: 'cached', label: t('queryLog.cached') },
+    { value: 'forwarded', label: t('queryLog.forwarded') }
+  ]
+
   const filtered = useMemo(() => {
     let result = queries
     
@@ -131,14 +139,9 @@ export function QueryLog() {
           <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-32"
-          >
-            <option value="all">{t('queryLog.filter')}</option>
-            <option value="blocked">{t('queryLog.blocked')}</option>
-            <option value="allowed">{t('queryLog.allowed')}</option>
-            <option value="cached">{t('queryLog.cached')}</option>
-            <option value="forwarded">{t('queryLog.forwarded')}</option>
-          </Select>
+            options={filterOptions}
+            className="w-36"
+          />
           <Button variant="outline" size="icon" onClick={exportData} title={t('queryLog.export')}>
             <Download className="h-4 w-4" />
           </Button>

@@ -20,6 +20,12 @@ export function Blacklist() {
   const [isAdding, setIsAdding] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
+  const typeOptions = [
+    { value: 'exact', label: t('blacklist.exact') },
+    { value: 'wildcard', label: t('blacklist.wildcard') },
+    { value: 'regex', label: t('blacklist.regex') }
+  ]
+
   const handleAdd = async () => {
     if (newDomain.trim()) {
       setIsAdding(true)
@@ -129,12 +135,9 @@ export function Blacklist() {
               <Select
                 value={domainType}
                 onChange={(e) => setDomainType(e.target.value)}
+                options={typeOptions}
                 className="w-full sm:w-36"
-              >
-                <option value="exact">{t('blacklist.exact')}</option>
-                <option value="wildcard">{t('blacklist.wildcard')}</option>
-                <option value="regex">{t('blacklist.regex')}</option>
-              </Select>
+              />
               <div className="flex gap-2">
                 <Button onClick={handleAdd} disabled={isAdding || !newDomain.trim()}>
                   {isAdding ? (

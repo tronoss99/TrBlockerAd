@@ -198,15 +198,16 @@ export function Lists() {
               <Select
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
+                options={[
+                  { value: 'ads', label: t('lists.ads') },
+                  { value: 'tracking', label: t('lists.tracking') },
+                  { value: 'malware', label: t('lists.malware') },
+                  { value: 'phishing', label: t('lists.phishing') },
+                  { value: 'crypto', label: t('lists.crypto') },
+                  { value: 'custom', label: t('lists.custom') }
+                ]}
                 className="w-full sm:w-36"
-              >
-                <option value="ads">{t('lists.ads')}</option>
-                <option value="tracking">{t('lists.tracking')}</option>
-                <option value="malware">{t('lists.malware')}</option>
-                <option value="phishing">{t('lists.phishing')}</option>
-                <option value="crypto">{t('lists.crypto')}</option>
-                <option value="custom">{t('lists.custom')}</option>
-              </Select>
+              />
               <div className="flex gap-2">
                 <Button onClick={addList} disabled={isAdding || !newUrl.trim()}>
                   {isAdding ? (

@@ -140,12 +140,13 @@ export function DnsRecords() {
               <Select
                 value={newType}
                 onChange={(e) => setNewType(e.target.value)}
+                options={[
+                  { value: 'A', label: 'A' },
+                  { value: 'AAAA', label: 'AAAA' },
+                  { value: 'CNAME', label: 'CNAME' }
+                ]}
                 className="w-full sm:w-28"
-              >
-                <option value="A">A</option>
-                <option value="AAAA">AAAA</option>
-                <option value="CNAME">CNAME</option>
-              </Select>
+              />
               <div className="flex gap-2">
                 <Button onClick={addRecord} disabled={!newDomain.trim() || !newIp.trim()}>
                   <Check className="h-4 w-4" />

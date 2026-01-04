@@ -11,6 +11,14 @@ export function Logs() {
   const { t } = useLanguage()
   const [filter, setFilter] = useState('all')
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const filterOptions = [
+    { value: 'all', label: 'All' },
+    { value: 'info', label: 'Info' },
+    { value: 'warning', label: 'Warning' },
+    { value: 'error', label: 'Error' }
+  ]
+
   const [logs, setLogs] = useState([
     { time: new Date().toISOString(), level: 'info', message: 'DNS service started successfully' },
     { time: new Date(Date.now() - 60000).toISOString(), level: 'info', message: 'Gravity database updated' },
@@ -146,13 +154,9 @@ export function Logs() {
             <Select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
+              options={filterOptions}
               className="w-32"
-            >
-              <option value="all">All</option>
-              <option value="info">Info</option>
-              <option value="warning">Warning</option>
-              <option value="error">Error</option>
-            </Select>
+            />
             <Button variant="outline" size="sm" onClick={handleDownload}>
               <Download className="h-4 w-4" />
               <span className="hidden sm:inline ml-2">{t('system.downloadLogs')}</span>

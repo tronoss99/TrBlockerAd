@@ -1,12 +1,18 @@
-import { Shield, LayoutDashboard, List, ListChecks, ListX, Settings, Globe, Users, Server, Network, Activity, FileText, Sun, Moon, ChevronDown } from 'lucide-react'
+import { Shield, LayoutDashboard, List, ListChecks, ListX, Settings, Globe, Users, Server, Network, Activity, FileText, Sun, Moon } from 'lucide-react'
 import { useLanguage } from '../context/LanguageContext'
 import { useTheme } from '../context/ThemeContext'
 import { cn } from '../lib/utils'
 import { languageNames } from '../i18n'
+import { Select } from './ui/Select'
 
 export function Sidebar({ currentPage, onNavigate }) {
   const { t, lang, setLang } = useLanguage()
   const { theme, toggleTheme } = useTheme()
+
+  const languageOptions = Object.entries(languageNames).map(([code, name]) => ({
+    value: code,
+    label: name
+  }))
 
   const navGroups = [
     {
@@ -87,30 +93,18 @@ export function Sidebar({ currentPage, onNavigate }) {
       {/* Footer */}
       <div className="border-t p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <div className="relative flex-1">
-            <Globe className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <select
+          <div className="flex-1">
+            <Select
               value={lang}
               onChange={(e) => setLang(e.target.value)}
-              className={cn(
-                'w-full h-9 appearance-none rounded-lg border border-input bg-background pl-9 pr-8 text-sm',
-                'transition-all duration-200',
-                'hover:border-primary/50',
-                'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
-                'cursor-pointer',
-                '[&>option]:bg-popover [&>option]:text-popover-foreground'
-              )}
-            >
-              {Object.entries(languageNames).map(([code, name]) => (
-                <option key={code} value={code}>{name}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              options={languageOptions}
+              className="w-full"
+            />
           </div>
           <button
             onClick={toggleTheme}
             className={cn(
-              'flex h-9 w-9 items-center justify-center rounded-lg border border-input',
+              'flex h-10 w-10 items-center justify-center rounded-lg border border-input',
               'transition-all duration-200',
               'hover:bg-accent hover:border-primary/50'
             )}

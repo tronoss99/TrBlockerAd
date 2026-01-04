@@ -15,6 +15,31 @@ export function Settings() {
   const { t, lang, setLang } = useLanguage()
   const { theme, setTheme } = useTheme()
   const [saved, setSaved] = useState(false)
+
+  const languageOptions = Object.entries(languageNames).map(([code, name]) => ({
+    value: code,
+    label: name
+  }))
+
+  const themeOptions = [
+    { value: 'dark', label: t('settings.dark') },
+    { value: 'light', label: t('settings.light') }
+  ]
+
+  const blockingModeOptions = [
+    { value: 'null', label: t('settings.blockingModes.null') },
+    { value: 'ip', label: t('settings.blockingModes.ip') },
+    { value: 'nxdomain', label: t('settings.blockingModes.nxdomain') },
+    { value: 'nodata', label: t('settings.blockingModes.nodata') }
+  ]
+
+  const privacyLevelOptions = [
+    { value: 0, label: t('settings.privacyLevels.showAll') },
+    { value: 1, label: t('settings.privacyLevels.hideClients') },
+    { value: 2, label: t('settings.privacyLevels.anonymous') },
+    { value: 3, label: t('settings.privacyLevels.disabled') }
+  ]
+
   const [settings, setSettings] = useState({
     refreshInterval: 5,
     dnssec: true,
@@ -93,11 +118,12 @@ export function Settings() {
                 Select your preferred language
               </p>
             </div>
-            <Select value={lang} onChange={(e) => setLang(e.target.value)} className="w-full sm:w-48">
-              {Object.entries(languageNames).map(([code, name]) => (
-                <option key={code} value={code}>{name}</option>
-              ))}
-            </Select>
+            <Select 
+              value={lang} 
+              onChange={(e) => setLang(e.target.value)} 
+              options={languageOptions}
+              className="w-full sm:w-48"
+            />
           </div>
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -107,10 +133,12 @@ export function Settings() {
                 Choose dark or light mode
               </p>
             </div>
-            <Select value={theme} onChange={(e) => setTheme(e.target.value)} className="w-full sm:w-48">
-              <option value="dark">{t('settings.dark')}</option>
-              <option value="light">{t('settings.light')}</option>
-            </Select>
+            <Select 
+              value={theme} 
+              onChange={(e) => setTheme(e.target.value)} 
+              options={themeOptions}
+              className="w-full sm:w-48"
+            />
           </div>
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -222,13 +250,9 @@ export function Settings() {
             <Select 
               value={settings.blockingMode} 
               onChange={(e) => updateSetting('blockingMode', e.target.value)} 
+              options={blockingModeOptions}
               className="w-full sm:w-48"
-            >
-              <option value="null">{t('settings.blockingModes.null')}</option>
-              <option value="ip">{t('settings.blockingModes.ip')}</option>
-              <option value="nxdomain">{t('settings.blockingModes.nxdomain')}</option>
-              <option value="nodata">{t('settings.blockingModes.nodata')}</option>
-            </Select>
+            />
           </div>
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-t">
@@ -342,13 +366,9 @@ export function Settings() {
             <Select 
               value={settings.privacyLevel} 
               onChange={(e) => updateSetting('privacyLevel', parseInt(e.target.value))} 
+              options={privacyLevelOptions}
               className="w-full sm:w-48"
-            >
-              <option value={0}>{t('settings.privacyLevels.showAll')}</option>
-              <option value={1}>{t('settings.privacyLevels.hideClients')}</option>
-              <option value={2}>{t('settings.privacyLevels.anonymous')}</option>
-              <option value={3}>{t('settings.privacyLevels.disabled')}</option>
-            </Select>
+            />
           </div>
         </CardContent>
       </Card>
