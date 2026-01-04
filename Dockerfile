@@ -26,10 +26,18 @@ COPY nginx-pihole.conf /etc/nginx/http.d/default.conf
 # Create nginx directories
 RUN mkdir -p /run/nginx /var/log/nginx
 
-# Create cont-init script to start nginx (runs during container init)
-RUN mkdir -p /etc/cont-init.d && \
-    printf '#!/bin/sh\nnginx\n' > /etc/cont-init.d/99-start-nginx && \
-    chmod +x /etc/cont-init.d/99-start-nginx
+# Add nginx start to Pi-hole's bash init scripts
+RUN mkdir -p /etc/pihole && \
+    echo '#!/bin/bash' > /etc/pihole/start-nginx.sh && \
+    echo 'nginx' >> /etc/pihole/start-nginx.sh && \
+    chmod +x /etc/pihole/start-nginx.sh
+
+# Modify the pihole startup to include nginx
+RUN sed -i 's|exec /usr/bin/pihole-FTL|/etc/pihole/start-nginx.sh \&\& exec /usr/bin/pihole-FTL|g' /usr/local/bin/_startup.sh 2>/dev/null || \
+    echo '/etc/pihole/start-nginx.sh' >> /etc/pihole/pihole-FTL.conf 2>/dev/null || true
+
+# Alternative: use cron @reboot
+RUN echo '@reboot nginx' >> /var/spool/cron/crontabs/root 2>/dev/null || true
 
 EXPOSE 53/tcp 53/udp 80/tcp
 

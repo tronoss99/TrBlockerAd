@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
-const API_BASE = '/api'
+// Pi-hole v6 API
+const API_BASE = '/admin/api.php'
 
 export function usePihole(refreshInterval = 5000) {
   const [data, setData] = useState(null)
@@ -10,12 +11,12 @@ export function usePihole(refreshInterval = 5000) {
   const fetchData = useCallback(async () => {
     try {
       const [summary, overTime, topItems, queryTypes, forwarded, clients] = await Promise.all([
-        fetch(`${API_BASE}?summaryRaw`).then(r => r.json()),
-        fetch(`${API_BASE}?overTimeData10mins`).then(r => r.json()),
-        fetch(`${API_BASE}?topItems=10`).then(r => r.json()),
-        fetch(`${API_BASE}?getQueryTypes`).then(r => r.json()),
-        fetch(`${API_BASE}?getForwardDestinations`).then(r => r.json()),
-        fetch(`${API_BASE}?getQuerySources&topClientsBlocked`).then(r => r.json())
+        fetch(`${API_BASE}?summaryRaw`).then(r => r.json()).catch(() => ({})),
+        fetch(`${API_BASE}?overTimeData10mins`).then(r => r.json()).catch(() => ({})),
+        fetch(`${API_BASE}?topItems=10`).then(r => r.json()).catch(() => ({})),
+        fetch(`${API_BASE}?getQueryTypes`).then(r => r.json()).catch(() => ({})),
+        fetch(`${API_BASE}?getForwardDestinations`).then(r => r.json()).catch(() => ({})),
+        fetch(`${API_BASE}?getQuerySources&topClientsBlocked`).then(r => r.json()).catch(() => ({}))
       ])
       setData({ summary, overTime, topItems, queryTypes, forwarded, clients, lastUpdate: Date.now() })
       setError(null)
@@ -137,8 +138,8 @@ export function useSystemInfo() {
   const fetchInfo = useCallback(async () => {
     try {
       const [version, cacheInfo] = await Promise.all([
-        fetch(`${API_BASE}?version`).then(r => r.json()),
-        fetch(`${API_BASE}?getCacheInfo`).then(r => r.json())
+        fetch(`${API_BASE}?version`).then(r => r.json()).catch(() => ({})),
+        fetch(`${API_BASE}?getCacheInfo`).then(r => r.json()).catch(() => ({}))
       ])
       setInfo({ version, cacheInfo })
     } catch (err) {
