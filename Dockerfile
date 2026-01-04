@@ -24,7 +24,8 @@ COPY dashboard/dist/ /var/www/trblocker/
 COPY nginx-pihole.conf /etc/nginx/http.d/default.conf
 
 # Create s6 service for nginx
-RUN mkdir -p /etc/s6-overlay/s6-rc.d/nginx/dependencies.d && \
+RUN mkdir -p /etc/s6-overlay/s6-rc.d/nginx/dependencies.d \
+    /etc/s6-overlay/s6-rc.d/user/contents.d && \
     echo "longrun" > /etc/s6-overlay/s6-rc.d/nginx/type && \
     printf '#!/command/execlineb -P\nnginx -g "daemon off;"\n' > /etc/s6-overlay/s6-rc.d/nginx/run && \
     chmod +x /etc/s6-overlay/s6-rc.d/nginx/run && \
