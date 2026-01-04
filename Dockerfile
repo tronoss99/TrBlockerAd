@@ -10,11 +10,12 @@ ENV DNSSEC=true
 ENV QUERY_LOGGING=true
 ENV FTLCONF_MAXDBDAYS=365
 ENV WEB_PORT=8080
+ENV WEBTHEME=default-dark
 
 COPY pihole/adlists.list /etc/pihole/adlists.list
 COPY pihole/custom.list /etc/pihole/custom.list
 
-# Install nginx (Alpine uses apk)
+# Install nginx
 RUN apk add --no-cache nginx
 
 # Copy our dashboard
@@ -22,6 +23,9 @@ COPY dashboard/dist/ /var/www/trblocker/
 
 # Copy nginx config
 COPY nginx-pihole.conf /etc/nginx/http.d/default.conf
+
+# Create nginx run directory
+RUN mkdir -p /run/nginx
 
 # Create s6 service for nginx
 RUN mkdir -p /etc/s6-overlay/s6-rc.d/nginx/dependencies.d \
