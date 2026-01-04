@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, RefreshCw, ExternalLink, Check, X, ListChecks, Database, Shield, Upload, FileText } from 'lucide-react'
+import { Plus, Trash2, RefreshCw, ExternalLink, Check, X, ListChecks, Database, Shield, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
@@ -40,6 +40,16 @@ export function Lists() {
   const [updating, setUpdating] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 })
+  const [notification, setNotification] = useState(null) // { type: 'success' | 'error', message: string }
+  const [importResults, setImportResults] = useState({ success: 0, failed: 0 })
+
+  // Auto-hide notification after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [notification])
 
   // Use API lists if available
   useEffect(() => {
@@ -83,10 +93,13 @@ export function Lists() {
       setIsAdding(true)
       const success = await apiAddList(newUrl.trim(), newCategory)
       if (success) {
+        setNotification({ type: 'success', message: t('messages.added') })
         setNewUrl('')
         setNewCategory('custom')
         setShowAdd(false)
       } else {
+        setNotification({ type: 'error', message: t('messages.failed') + ' - API error' })
+        // Still add to local state for display
         setLists(prev => [...prev, { url: newUrl.trim(), enabled: true, domains: 0, category: newCategory }])
         setNewUrl('')
         setNewCategory('custom')
@@ -107,18 +120,37 @@ export function Lists() {
 
     setIsAdding(true)
     setImportProgress({ current: 0, total: urls.length })
+    setImportResults({ success: 0, failed: 0 })
+
+    let successCount = 0
+    let failedCount = 0
 
     for (let i = 0; i < urls.length; i++) {
       setImportProgress({ current: i + 1, total: urls.length })
-      await apiAddList(urls[i], 'custom')
-      // Small delay to avoid overwhelming the API
-      await new Promise(r => setTimeout(r, 200))
+      const success = await apiAddList(urls[i], 'custom')
+      if (success) {
+        successCount++
+      } else {
+        failedCount++
+      }
+      setImportResults({ success: successCount, failed: failedCount })
+      await new Promise(r => setTimeout(r, 300))
     }
 
     setBulkUrls('')
     setShowBulkImport(false)
     setIsAdding(false)
     setImportProgress({ current: 0, total: 0 })
+    
+    if (successCount > 0) {
+      setNotification({ 
+        type: failedCount > 0 ? 'warning' : 'success', 
+        message: `${successCount} ${t('messages.added')}${failedCount > 0 ? `, ${failedCount} ${t('messages.failed')}` : ''}`
+      })
+    } else {
+      setNotification({ type: 'error', message: t('messages.failed') })
+    }
+    
     await refresh()
   }
 
@@ -128,16 +160,36 @@ export function Lists() {
 
     setIsAdding(true)
     setImportProgress({ current: 0, total: RECOMMENDED_LISTS.length })
+    setImportResults({ success: 0, failed: 0 })
+
+    let successCount = 0
+    let failedCount = 0
 
     for (let i = 0; i < RECOMMENDED_LISTS.length; i++) {
       const list = RECOMMENDED_LISTS[i]
       setImportProgress({ current: i + 1, total: RECOMMENDED_LISTS.length })
-      await apiAddList(list.url, list.category)
-      await new Promise(r => setTimeout(r, 200))
+      const success = await apiAddList(list.url, list.category)
+      if (success) {
+        successCount++
+      } else {
+        failedCount++
+      }
+      setImportResults({ success: successCount, failed: failedCount })
+      await new Promise(r => setTimeout(r, 300))
     }
 
     setIsAdding(false)
     setImportProgress({ current: 0, total: 0 })
+    
+    if (successCount > 0) {
+      setNotification({ 
+        type: failedCount > 0 ? 'warning' : 'success', 
+        message: `${successCount} ${t('lists.title')} ${t('messages.added')}${failedCount > 0 ? `, ${failedCount} ${t('messages.failed')}` : ''}`
+      })
+    } else {
+      setNotification({ type: 'error', message: t('messages.failed') })
+    }
+    
     await refresh()
   }
 
@@ -171,6 +223,24 @@ export function Lists() {
 
   return (
     <div className="space-y-6">
+      {/* Notification Toast */}
+      {notification && (
+        <div className={cn(
+          'fixed top-4 right-4 z-50 flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg animate-in slide-in-from-top-2',
+          notification.type === 'success' && 'bg-green-500/10 border-green-500/30 text-green-500',
+          notification.type === 'error' && 'bg-red-500/10 border-red-500/30 text-red-500',
+          notification.type === 'warning' && 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500'
+        )}>
+          {notification.type === 'success' && <CheckCircle className="h-5 w-5" />}
+          {notification.type === 'error' && <AlertCircle className="h-5 w-5" />}
+          {notification.type === 'warning' && <AlertCircle className="h-5 w-5" />}
+          <span className="text-sm font-medium">{notification.message}</span>
+          <button onClick={() => setNotification(null)} className="ml-2 hover:opacity-70">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

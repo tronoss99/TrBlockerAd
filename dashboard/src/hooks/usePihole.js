@@ -341,10 +341,30 @@ export function useLists() {
 
   const fetchLists = useCallback(async () => {
     try {
-      const data = await apiCall('/lists')
-      // Pi-hole v6 returns lists in different formats
-      const listsArray = data.lists || data.adlists || []
-      setLists(Array.isArray(listsArray) ? listsArray : Object.values(listsArray))
+      // Try Pi-hole v6 API endpoint
+      const res = await fetch(`${API_BASE}/lists`)
+      if (res.ok) {
+        const data = await res.json()
+        // Handle different response formats
+        let listsArray = []
+        if (data.lists) {
+          listsArray = Array.isArray(data.lists) ? data.lists : Object.values(data.lists)
+        } else if (data.adlists) {
+          listsArray = Array.isArray(data.adlists) ? data.adlists : Object.values(data.adlists)
+        } else if (Array.isArray(data)) {
+          listsArray = data
+        }
+        setLists(listsArray)
+      } else {
+        // Try alternative endpoint
+        const res2 = await fetch(`${API_BASE}/adlists`)
+        if (res2.ok) {
+          const data2 = await res2.json()
+          setLists(data2.adlists || data2.lists || [])
+        } else {
+          setLists([])
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch lists:', err)
       setLists([])
@@ -354,40 +374,71 @@ export function useLists() {
   }, [])
 
   const addList = useCallback(async (url, comment = '') => {
-    try {
-      // Pi-hole v6 API format for adding lists
-      await apiCall('/lists', {
-        method: 'POST',
-        body: JSON.stringify({ 
-          address: url,
-          enabled: true,
-          comment: comment || ''
-        })
-      })
-      await fetchLists()
-      return true
-    } catch (err) {
-      console.error('Failed to add list:', err)
-      // Try alternative format
+    // Try multiple API formats for Pi-hole v6
+    const formats = [
+      // Format 1: Standard Pi-hole v6
+      { address: url, enabled: true, comment: comment || '' },
+      // Format 2: Alternative
+      { address: url, enabled: true },
+      // Format 3: With type
+      { address: url, enabled: true, type: 'adlist', comment: comment || '' },
+      // Format 4: Simple
+      { url: url, enabled: true }
+    ]
+
+    for (const body of formats) {
       try {
-        await apiCall('/lists', {
-          method: 'POST', 
-          body: JSON.stringify({ url, enabled: true })
+        const res = await fetch(`${API_BASE}/lists`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
         })
-        await fetchLists()
-        return true
-      } catch (err2) {
-        console.error('Alternative format also failed:', err2)
-        return false
+        
+        if (res.ok || res.status === 201) {
+          console.log('List added successfully with format:', body)
+          await fetchLists()
+          return true
+        }
+        
+        // Log the error for debugging
+        const errorText = await res.text().catch(() => '')
+        console.log(`Format failed (${res.status}):`, body, errorText)
+      } catch (err) {
+        console.log('Format error:', body, err.message)
       }
     }
+
+    // Try /adlists endpoint as fallback
+    try {
+      const res = await fetch(`${API_BASE}/adlists`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: url, enabled: true, comment: comment || '' })
+      })
+      if (res.ok || res.status === 201) {
+        await fetchLists()
+        return true
+      }
+    } catch (err) {
+      console.log('Adlists endpoint failed:', err.message)
+    }
+
+    console.error('All API formats failed for adding list')
+    return false
   }, [fetchLists])
 
   const removeList = useCallback(async (id) => {
     try {
-      await apiCall(`/lists/${id}`, { method: 'DELETE' })
-      await fetchLists()
-      return true
+      // Try different endpoints
+      let res = await fetch(`${API_BASE}/lists/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        res = await fetch(`${API_BASE}/adlists/${id}`, { method: 'DELETE' })
+      }
+      if (res.ok) {
+        await fetchLists()
+        return true
+      }
+      return false
     } catch (err) {
       console.error('Failed to remove list:', err)
       return false
@@ -396,12 +447,23 @@ export function useLists() {
 
   const toggleList = useCallback(async (id, enabled) => {
     try {
-      await apiCall(`/lists/${id}`, {
+      let res = await fetch(`${API_BASE}/lists/${id}`, {
         method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled })
       })
-      await fetchLists()
-      return true
+      if (!res.ok) {
+        res = await fetch(`${API_BASE}/lists/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled })
+        })
+      }
+      if (res.ok) {
+        await fetchLists()
+        return true
+      }
+      return false
     } catch (err) {
       console.error('Failed to toggle list:', err)
       return false
