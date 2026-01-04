@@ -158,7 +158,17 @@ export default {
     source: 'Source',
     addedOn: 'Added On',
     hits: 'Hits',
-    title: 'Block Lists'
+    title: 'Block Lists',
+    bulkImport: 'Bulk Import',
+    bulkImportTitle: 'Import multiple lists (one URL per line)',
+    bulkImportPlaceholder: 'https://example.com/list1.txt\nhttps://example.com/list2.txt\nhttps://example.com/list3.txt',
+    import: 'Import',
+    empty: 'No block lists configured',
+    getStarted: 'Get Started with Ad Blocking',
+    getStartedDesc: 'Load recommended block lists to start protecting your network',
+    loadRecommended: 'Load Recommended Lists',
+    confirmLoadRecommended: 'This will add 10 recommended block lists. Continue?',
+    description: 'Manage your ad blocking lists'
   },
   whitelist: {
     title: 'Whitelisted Domains',

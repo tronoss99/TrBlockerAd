@@ -158,7 +158,17 @@ export default {
     source: 'Fuente',
     addedOn: 'Añadida el',
     hits: 'Coincidencias',
-    title: 'Listas de Bloqueo'
+    title: 'Listas de Bloqueo',
+    bulkImport: 'Importar en Masa',
+    bulkImportTitle: 'Importar múltiples listas (una URL por línea)',
+    bulkImportPlaceholder: 'https://ejemplo.com/lista1.txt\nhttps://ejemplo.com/lista2.txt\nhttps://ejemplo.com/lista3.txt',
+    import: 'Importar',
+    empty: 'No hay listas de bloqueo configuradas',
+    getStarted: 'Comenzar con el Bloqueo de Anuncios',
+    getStartedDesc: 'Carga las listas recomendadas para empezar a proteger tu red',
+    loadRecommended: 'Cargar Listas Recomendadas',
+    confirmLoadRecommended: 'Esto añadirá 10 listas de bloqueo recomendadas. ¿Continuar?',
+    description: 'Gestiona tus listas de bloqueo de anuncios'
   },
   whitelist: {
     title: 'Dominios en Lista Blanca',

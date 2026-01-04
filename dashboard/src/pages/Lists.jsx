@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, RefreshCw, ExternalLink, Check, X, ListChecks, Database, Shield } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
+import { Plus, Trash2, RefreshCw, ExternalLink, Check, X, ListChecks, Database, Shield, Upload, FileText } from 'lucide-react'
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
@@ -11,28 +11,34 @@ import { useLanguage } from '../context/LanguageContext'
 import { useLists, runGravityUpdate } from '../hooks/usePihole'
 import { cn, formatNumber } from '../lib/utils'
 
-const DEFAULT_LISTS = [
-  { url: 'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts', enabled: true, domains: 180000, category: 'ads' },
-  { url: 'https://v.firebog.net/hosts/AdguardDNS.txt', enabled: true, domains: 45000, category: 'ads' },
-  { url: 'https://v.firebog.net/hosts/Easylist.txt', enabled: true, domains: 32000, category: 'ads' },
-  { url: 'https://v.firebog.net/hosts/Easyprivacy.txt', enabled: true, domains: 15000, category: 'tracking' },
-  { url: 'https://raw.githubusercontent.com/anudeepND/blacklist/master/adservers.txt', enabled: true, domains: 48000, category: 'ads' },
-  { url: 'https://phishing.army/download/phishing_army_blocklist_extended.txt', enabled: true, domains: 12000, category: 'phishing' },
-  { url: 'https://v.firebog.net/hosts/Prigent-Crypto.txt', enabled: true, domains: 8000, category: 'crypto' },
-  { url: 'https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/spy.txt', enabled: true, domains: 3500, category: 'tracking' }
+// Recommended blocklists
+const RECOMMENDED_LISTS = [
+  { url: 'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts', category: 'ads', domains: 180000 },
+  { url: 'https://v.firebog.net/hosts/AdguardDNS.txt', category: 'ads', domains: 45000 },
+  { url: 'https://v.firebog.net/hosts/Easylist.txt', category: 'ads', domains: 32000 },
+  { url: 'https://v.firebog.net/hosts/Easyprivacy.txt', category: 'tracking', domains: 15000 },
+  { url: 'https://raw.githubusercontent.com/anudeepND/blacklist/master/adservers.txt', category: 'ads', domains: 48000 },
+  { url: 'https://phishing.army/download/phishing_army_blocklist_extended.txt', category: 'phishing', domains: 12000 },
+  { url: 'https://v.firebog.net/hosts/Prigent-Crypto.txt', category: 'crypto', domains: 8000 },
+  { url: 'https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/spy.txt', category: 'tracking', domains: 3500 },
+  { url: 'https://v.firebog.net/hosts/Prigent-Malware.txt', category: 'malware', domains: 25000 },
+  { url: 'https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20versions%20Anti-Malware%20List/AntiMalwareHosts.txt', category: 'malware', domains: 8500 }
 ]
 
 export function Lists() {
   const { t } = useLanguage()
   const { lists: apiLists, loading: apiLoading, addList: apiAddList, removeList: apiRemoveList, toggleList: apiToggleList, refresh } = useLists()
-  const [lists, setLists] = useState(DEFAULT_LISTS)
+  const [lists, setLists] = useState([])
   const [showAdd, setShowAdd] = useState(false)
+  const [showBulkImport, setShowBulkImport] = useState(false)
   const [newUrl, setNewUrl] = useState('')
   const [newCategory, setNewCategory] = useState('custom')
+  const [bulkUrls, setBulkUrls] = useState('')
   const [updating, setUpdating] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0 })
 
-  // Use API lists if available, otherwise use defaults
+  // Use API lists if available
   useEffect(() => {
     if (apiLists && apiLists.length > 0) {
       setLists(apiLists.map(l => ({
@@ -78,7 +84,6 @@ export function Lists() {
         setNewCategory('custom')
         setShowAdd(false)
       } else {
-        // Fallback to local state
         setLists(prev => [...prev, { url: newUrl.trim(), enabled: true, domains: 0, category: newCategory }])
         setNewUrl('')
         setNewCategory('custom')
@@ -86,6 +91,51 @@ export function Lists() {
       }
       setIsAdding(false)
     }
+  }
+
+  // Bulk import - one URL per line
+  const handleBulkImport = async () => {
+    const urls = bulkUrls
+      .split('\n')
+      .map(url => url.trim())
+      .filter(url => url && url.startsWith('http'))
+    
+    if (urls.length === 0) return
+
+    setIsAdding(true)
+    setImportProgress({ current: 0, total: urls.length })
+
+    for (let i = 0; i < urls.length; i++) {
+      setImportProgress({ current: i + 1, total: urls.length })
+      await apiAddList(urls[i], 'custom')
+      // Small delay to avoid overwhelming the API
+      await new Promise(r => setTimeout(r, 200))
+    }
+
+    setBulkUrls('')
+    setShowBulkImport(false)
+    setIsAdding(false)
+    setImportProgress({ current: 0, total: 0 })
+    await refresh()
+  }
+
+  // Load all recommended lists
+  const loadRecommendedLists = async () => {
+    if (!confirm(t('lists.confirmLoadRecommended'))) return
+
+    setIsAdding(true)
+    setImportProgress({ current: 0, total: RECOMMENDED_LISTS.length })
+
+    for (let i = 0; i < RECOMMENDED_LISTS.length; i++) {
+      const list = RECOMMENDED_LISTS[i]
+      setImportProgress({ current: i + 1, total: RECOMMENDED_LISTS.length })
+      await apiAddList(list.url, list.category)
+      await new Promise(r => setTimeout(r, 200))
+    }
+
+    setIsAdding(false)
+    setImportProgress({ current: 0, total: 0 })
+    await refresh()
   }
 
   const handleGravityUpdate = async () => {
@@ -161,10 +211,41 @@ export function Lists() {
         </Card>
       </div>
 
+      {/* Quick Actions */}
+      {lists.length === 0 && !apiLoading && (
+        <Card className="border-dashed border-2 border-primary/30 bg-primary/5">
+          <CardContent className="p-6">
+            <div className="flex flex-col items-center text-center gap-4">
+              <Shield className="h-12 w-12 text-primary" />
+              <div>
+                <h3 className="text-lg font-semibold">{t('lists.getStarted')}</h3>
+                <p className="text-sm text-muted-foreground mt-1">{t('lists.getStartedDesc')}</p>
+              </div>
+              <Button onClick={loadRecommendedLists} disabled={isAdding}>
+                {isAdding ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                    {importProgress.current}/{importProgress.total}
+                  </>
+                ) : (
+                  <>
+                    <Shield className="h-4 w-4 mr-2" />
+                    {t('lists.loadRecommended')}
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Main Card */}
       <Card>
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="text-xl">{t('lists.title')}</CardTitle>
+          <div>
+            <CardTitle className="text-xl">{t('lists.title')}</CardTitle>
+            <CardDescription>{t('lists.description')}</CardDescription>
+          </div>
           <div className="flex flex-wrap gap-2">
             <Button 
               variant="outline" 
@@ -177,6 +258,10 @@ export function Lists() {
                 {updating ? t('lists.gravityRunning') : t('lists.runGravity')}
               </span>
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowBulkImport(true)}>
+              <Upload className="h-4 w-4" />
+              <span className="ml-2">{t('lists.bulkImport')}</span>
+            </Button>
             <Button size="sm" onClick={() => setShowAdd(true)}>
               <Plus className="h-4 w-4" />
               <span className="ml-2">{t('lists.addList')}</span>
@@ -184,7 +269,46 @@ export function Lists() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Add Form */}
+          {/* Bulk Import Form */}
+          {showBulkImport && (
+            <div className="rounded-xl border bg-muted/50 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <FileText className="h-4 w-4" />
+                {t('lists.bulkImportTitle')}
+              </div>
+              <textarea
+                placeholder={t('lists.bulkImportPlaceholder')}
+                value={bulkUrls}
+                onChange={(e) => setBulkUrls(e.target.value)}
+                className="w-full h-32 rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">
+                  {bulkUrls.split('\n').filter(u => u.trim().startsWith('http')).length} URLs
+                </span>
+                <div className="flex gap-2">
+                  <Button onClick={handleBulkImport} disabled={isAdding || !bulkUrls.trim()}>
+                    {isAdding ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                        {importProgress.current}/{importProgress.total}
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        {t('lists.import')}
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="ghost" onClick={() => setShowBulkImport(false)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Add Single Form */}
           {showAdd && (
             <div className="flex flex-col sm:flex-row gap-2 rounded-xl border bg-muted/50 p-4">
               <Input
@@ -239,6 +363,21 @@ export function Lists() {
                   <Skeleton className="h-9 w-9" />
                 </div>
               ))}
+            </div>
+          ) : lists.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <ListChecks className="h-12 w-12 text-muted-foreground/50 mb-4" />
+              <p className="text-muted-foreground">{t('lists.empty')}</p>
+              <div className="flex gap-2 mt-4">
+                <Button variant="outline" onClick={() => setShowAdd(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('lists.addList')}
+                </Button>
+                <Button onClick={loadRecommendedLists}>
+                  <Shield className="h-4 w-4 mr-2" />
+                  {t('lists.loadRecommended')}
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
