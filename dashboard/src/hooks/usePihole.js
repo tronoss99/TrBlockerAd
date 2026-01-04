@@ -374,57 +374,34 @@ export function useLists() {
   }, [])
 
   const addList = useCallback(async (url, comment = '') => {
-    // Try multiple API formats for Pi-hole v6
-    const formats = [
-      // Format 1: Standard Pi-hole v6
-      { address: url, enabled: true, comment: comment || '' },
-      // Format 2: Alternative
-      { address: url, enabled: true },
-      // Format 3: With type
-      { address: url, enabled: true, type: 'adlist', comment: comment || '' },
-      // Format 4: Simple
-      { url: url, enabled: true }
-    ]
-
-    for (const body of formats) {
-      try {
-        const res = await fetch(`${API_BASE}/lists`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        })
-        
-        if (res.ok || res.status === 201) {
-          console.log('List added successfully with format:', body)
-          await fetchLists()
-          return true
-        }
-        
-        // Log the error for debugging
-        const errorText = await res.text().catch(() => '')
-        console.log(`Format failed (${res.status}):`, body, errorText)
-      } catch (err) {
-        console.log('Format error:', body, err.message)
-      }
+    // Pi-hole v6 requires type: "block" for blocklists
+    const body = {
+      address: url,
+      enabled: true,
+      type: 'block',
+      comment: comment || ''
     }
 
-    // Try /adlists endpoint as fallback
     try {
-      const res = await fetch(`${API_BASE}/adlists`, {
+      const res = await fetch(`${API_BASE}/lists`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: url, enabled: true, comment: comment || '' })
+        body: JSON.stringify(body)
       })
+      
       if (res.ok || res.status === 201) {
+        console.log('List added successfully:', url)
         await fetchLists()
         return true
       }
+      
+      const errorText = await res.text().catch(() => '')
+      console.error(`Failed to add list (${res.status}):`, errorText)
+      return false
     } catch (err) {
-      console.log('Adlists endpoint failed:', err.message)
+      console.error('Error adding list:', err.message)
+      return false
     }
-
-    console.error('All API formats failed for adding list')
-    return false
   }, [fetchLists])
 
   const removeList = useCallback(async (id) => {
