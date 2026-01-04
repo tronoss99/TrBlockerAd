@@ -1,2 +1,5 @@
+[webserver]
+port = "8080"
+
 [webserver.api]
-localAPIauth = false
+password = ""

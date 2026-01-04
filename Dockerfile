@@ -10,11 +10,11 @@ ENV DNSSEC=true
 ENV QUERY_LOGGING=true
 ENV WEBTHEME=default-dark
 ENV FTLCONF_webserver_port=8080
-ENV FTLCONF_webserver_api_localAPIauth=false
-ENV WEBPASSWORD=
+ENV FTLCONF_webserver_api_password=
 
 COPY pihole/adlists.list /etc/pihole/adlists.list
 COPY pihole/custom.list /etc/pihole/custom.list
+COPY pihole/pihole.toml /etc/pihole/pihole.toml
 
 # Install nginx
 RUN apk add --no-cache nginx
