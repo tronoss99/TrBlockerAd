@@ -1,41 +1,21 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
-// Pi-hole v6 API
 const API_BASE = '/api'
 
-// Session ID for authentication
-let sessionId = null
-
+// Helper for API calls
 async function apiCall(endpoint, options = {}) {
-  const headers = { 'Content-Type': 'application/json', ...options.headers }
-  if (sessionId) {
-    headers['X-FTL-SID'] = sessionId
-  }
-  
-  const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers })
-  const data = await res.json()
-  
-  if (data.session) {
-    sessionId = data.session.sid
-  }
-  
-  return data
-}
-
-export async function login(password) {
   try {
-    const res = await apiCall('/auth', {
-      method: 'POST',
-      body: JSON.stringify({ password })
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...options.headers }
     })
-    if (res.session) {
-      sessionId = res.session.sid
-      localStorage.setItem('pihole_sid', sessionId)
-      return true
+    if (!res.ok) {
+      throw new Error(`API error: ${res.status}`)
     }
-    return false
-  } catch {
-    return false
+    return await res.json()
+  } catch (err) {
+    console.error(`API call failed: ${endpoint}`, err)
+    throw err
   }
 }
 
@@ -43,39 +23,95 @@ export function usePihole(refreshInterval = 5000) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-
-  // Try to restore session
-  useEffect(() => {
-    const savedSid = localStorage.getItem('pihole_sid')
-    if (savedSid) sessionId = savedSid
-  }, [])
+  const intervalRef = useRef(null)
 
   const fetchData = useCallback(async () => {
     try {
-      const [stats, blocking] = await Promise.all([
+      // Pi-hole v6 API endpoints
+      const [stats, blocking, history, topDomains, topClients, queryTypes, upstreams] = await Promise.all([
         apiCall('/stats/summary').catch(() => ({})),
-        apiCall('/dns/blocking').catch(() => ({ blocking: true }))
+        apiCall('/dns/blocking').catch(() => ({ blocking: true })),
+        apiCall('/history').catch(() => null),
+        apiCall('/stats/top_domains?blocked=true&count=10').catch(() => null),
+        apiCall('/stats/top_clients?count=10').catch(() => null),
+        apiCall('/stats/query_types').catch(() => null),
+        apiCall('/stats/upstreams').catch(() => null)
       ])
-      
-      // Map to expected format
+
+      // Map Pi-hole v6 response to our format
       const summary = {
         dns_queries_today: stats.queries?.total || 0,
         ads_blocked_today: stats.queries?.blocked || 0,
         ads_percentage_today: stats.queries?.percent_blocked || 0,
         domains_being_blocked: stats.gravity?.domains_being_blocked || 0,
-        status: blocking.blocking ? 'enabled' : 'disabled',
+        status: blocking.blocking !== false ? 'enabled' : 'disabled',
         clients_ever_seen: stats.clients?.total || 0,
-        unique_clients: stats.clients?.active || 0
+        unique_clients: stats.clients?.active || 0,
+        queries_forwarded: stats.queries?.forwarded || 0,
+        queries_cached: stats.queries?.cached || 0,
+        cache_inserted: stats.cache?.inserted || 0,
+        cache_evicted: stats.cache?.evicted || 0,
+        memory: stats.system?.memory?.ram?.used || 0,
+        load: stats.system?.cpu?.load || [0, 0, 0],
+        reply_time: stats.queries?.reply_time || 0,
+        database_size: stats.database?.size || 0,
+        gravity_last_updated: stats.gravity?.last_update || null
       }
-      
-      setData({ 
-        summary, 
-        overTime: stats.queries_over_time || {},
-        topItems: { top_queries: {}, top_ads: {} },
-        queryTypes: {},
-        forwarded: {},
-        clients: {},
-        lastUpdate: Date.now() 
+
+      // Process history data for charts
+      let overTime = { domains_over_time: {}, ads_over_time: {} }
+      if (history?.history) {
+        history.history.forEach(item => {
+          const timestamp = item.timestamp
+          overTime.domains_over_time[timestamp] = item.total
+          overTime.ads_over_time[timestamp] = item.blocked
+        })
+      }
+
+      // Process top domains
+      const topItems = {
+        top_queries: {},
+        top_ads: {}
+      }
+      if (topDomains?.top_domains) {
+        topDomains.top_domains.forEach(item => {
+          topItems.top_ads[item.domain] = item.count
+        })
+      }
+
+      // Process top clients
+      const clients = { top_sources: {} }
+      if (topClients?.top_clients) {
+        topClients.top_clients.forEach(item => {
+          const key = item.name ? `${item.ip}|${item.name}` : item.ip
+          clients.top_sources[key] = item.count
+        })
+      }
+
+      // Process query types
+      const queryTypesData = { querytypes: {} }
+      if (queryTypes?.types) {
+        queryTypes.types.forEach(item => {
+          queryTypesData.querytypes[item.type] = item.count
+        })
+      }
+
+      // Process upstreams
+      const forwarded = { forward_destinations: {} }
+      if (upstreams?.upstreams) {
+        upstreams.upstreams.forEach(item => {
+          forwarded.forward_destinations[item.ip] = item.percentage
+        })
+      }
+
+      setData({
+        summary,
+        overTime,
+        topItems,
+        queryTypes: queryTypesData,
+        forwarded,
+        clients,
+        lastUpdate: Date.now()
       })
       setError(null)
     } catch (err) {
@@ -87,8 +123,10 @@ export function usePihole(refreshInterval = 5000) {
 
   useEffect(() => {
     fetchData()
-    const interval = setInterval(fetchData, refreshInterval)
-    return () => clearInterval(interval)
+    intervalRef.current = setInterval(fetchData, refreshInterval)
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [fetchData, refreshInterval])
 
   const toggleBlocking = useCallback(async (enable) => {
@@ -97,7 +135,7 @@ export function usePihole(refreshInterval = 5000) {
         method: 'POST',
         body: JSON.stringify({ blocking: enable, timer: null })
       })
-      fetchData()
+      await fetchData()
     } catch (err) {
       console.error('Toggle blocking failed:', err)
     }
@@ -109,13 +147,31 @@ export function usePihole(refreshInterval = 5000) {
 export function useQueryLog(limit = 100) {
   const [queries, setQueries] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   const fetchQueries = useCallback(async () => {
     try {
+      setLoading(true)
       const data = await apiCall(`/queries?length=${limit}`)
-      setQueries(data.queries || [])
+      
+      // Pi-hole v6 returns queries in a different format
+      const formattedQueries = (data.queries || []).map(q => ({
+        timestamp: q.time || q.timestamp,
+        type: q.type || 'A',
+        domain: q.domain || '',
+        client: q.client?.name || q.client?.ip || q.client || '',
+        status: q.status || 'allowed',
+        reply: q.reply?.type || '',
+        responseTime: q.reply?.time || 0,
+        upstream: q.upstream || '',
+        dnssec: q.dnssec || false
+      }))
+      
+      setQueries(formattedQueries)
+      setError(null)
     } catch (err) {
-      console.error(err)
+      setError(err.message)
+      setQueries([])
     } finally {
       setLoading(false)
     }
@@ -125,7 +181,7 @@ export function useQueryLog(limit = 100) {
     fetchQueries()
   }, [fetchQueries])
 
-  return { queries, loading, refresh: fetchQueries }
+  return { queries, loading, error, refresh: fetchQueries }
 }
 
 export function useWhitelist() {
@@ -137,25 +193,38 @@ export function useWhitelist() {
       const data = await apiCall('/domains/allow')
       setDomains(data.domains || [])
     } catch (err) {
-      console.error(err)
+      console.error('Failed to fetch whitelist:', err)
+      setDomains([])
     } finally {
       setLoading(false)
     }
   }, [])
 
-  const addDomain = useCallback(async (domain) => {
-    await apiCall('/domains/allow', {
-      method: 'POST',
-      body: JSON.stringify({ domain })
-    })
-    fetchDomains()
+  const addDomain = useCallback(async (domain, type = 'exact') => {
+    try {
+      await apiCall('/domains/allow', {
+        method: 'POST',
+        body: JSON.stringify({ domain, type })
+      })
+      await fetchDomains()
+      return true
+    } catch (err) {
+      console.error('Failed to add domain:', err)
+      return false
+    }
   }, [fetchDomains])
 
   const removeDomain = useCallback(async (domain) => {
-    await apiCall(`/domains/allow/${encodeURIComponent(domain)}`, {
-      method: 'DELETE'
-    })
-    fetchDomains()
+    try {
+      await apiCall(`/domains/allow/${encodeURIComponent(domain)}`, {
+        method: 'DELETE'
+      })
+      await fetchDomains()
+      return true
+    } catch (err) {
+      console.error('Failed to remove domain:', err)
+      return false
+    }
   }, [fetchDomains])
 
   useEffect(() => {
@@ -174,25 +243,38 @@ export function useBlacklist() {
       const data = await apiCall('/domains/deny')
       setDomains(data.domains || [])
     } catch (err) {
-      console.error(err)
+      console.error('Failed to fetch blacklist:', err)
+      setDomains([])
     } finally {
       setLoading(false)
     }
   }, [])
 
-  const addDomain = useCallback(async (domain) => {
-    await apiCall('/domains/deny', {
-      method: 'POST',
-      body: JSON.stringify({ domain })
-    })
-    fetchDomains()
+  const addDomain = useCallback(async (domain, type = 'exact') => {
+    try {
+      await apiCall('/domains/deny', {
+        method: 'POST',
+        body: JSON.stringify({ domain, type })
+      })
+      await fetchDomains()
+      return true
+    } catch (err) {
+      console.error('Failed to add domain:', err)
+      return false
+    }
   }, [fetchDomains])
 
   const removeDomain = useCallback(async (domain) => {
-    await apiCall(`/domains/deny/${encodeURIComponent(domain)}`, {
-      method: 'DELETE'
-    })
-    fetchDomains()
+    try {
+      await apiCall(`/domains/deny/${encodeURIComponent(domain)}`, {
+        method: 'DELETE'
+      })
+      await fetchDomains()
+      return true
+    } catch (err) {
+      console.error('Failed to remove domain:', err)
+      return false
+    }
   }, [fetchDomains])
 
   useEffect(() => {
@@ -208,13 +290,17 @@ export function useSystemInfo() {
 
   const fetchInfo = useCallback(async () => {
     try {
-      const [version, system] = await Promise.all([
-        apiCall('/info/version').catch(() => ({})),
-        apiCall('/info/system').catch(() => ({}))
-      ])
-      setInfo({ version, system })
+      const data = await apiCall('/info/version')
+      setInfo({
+        version: {
+          core: data.version || 'v6.x',
+          ftl: data.ftl?.version || 'v6.x',
+          web: data.web?.version || 'v6.x'
+        },
+        branch: data.branch || 'main'
+      })
     } catch (err) {
-      console.error(err)
+      console.error('Failed to fetch system info:', err)
     } finally {
       setLoading(false)
     }
@@ -227,14 +313,76 @@ export function useSystemInfo() {
   return { info, loading, refresh: fetchInfo }
 }
 
+export function useLists() {
+  const [lists, setLists] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchLists = useCallback(async () => {
+    try {
+      const data = await apiCall('/lists')
+      setLists(data.lists || [])
+    } catch (err) {
+      console.error('Failed to fetch lists:', err)
+      setLists([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const addList = useCallback(async (url, comment = '') => {
+    try {
+      await apiCall('/lists', {
+        method: 'POST',
+        body: JSON.stringify({ address: url, comment, enabled: true })
+      })
+      await fetchLists()
+      return true
+    } catch (err) {
+      console.error('Failed to add list:', err)
+      return false
+    }
+  }, [fetchLists])
+
+  const removeList = useCallback(async (id) => {
+    try {
+      await apiCall(`/lists/${id}`, { method: 'DELETE' })
+      await fetchLists()
+      return true
+    } catch (err) {
+      console.error('Failed to remove list:', err)
+      return false
+    }
+  }, [fetchLists])
+
+  const toggleList = useCallback(async (id, enabled) => {
+    try {
+      await apiCall(`/lists/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled })
+      })
+      await fetchLists()
+      return true
+    } catch (err) {
+      console.error('Failed to toggle list:', err)
+      return false
+    }
+  }, [fetchLists])
+
+  useEffect(() => {
+    fetchLists()
+  }, [fetchLists])
+
+  return { lists, loading, refresh: fetchLists, addList, removeList, toggleList }
+}
+
 export async function runGravityUpdate() {
   return apiCall('/action/gravity', { method: 'POST' })
 }
 
 export async function flushCache() {
-  return apiCall('/action/flush/cache', { method: 'POST' })
+  return apiCall('/cache/flush', { method: 'DELETE' })
 }
 
 export async function restartDns() {
-  return apiCall('/action/restartdns', { method: 'POST' })
+  return apiCall('/dns/restart', { method: 'POST' })
 }

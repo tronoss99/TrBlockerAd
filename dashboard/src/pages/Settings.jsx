@@ -1,17 +1,20 @@
 import { useState } from 'react'
-import { Save, RotateCcw, Shield, Database, Bell, Globe, Palette } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
+import { Save, RotateCcw, Shield, Database, Bell, Globe, Palette, Check } from 'lucide-react'
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { Switch } from '../components/ui/Switch'
+import { Badge } from '../components/ui/Badge'
 import { useLanguage } from '../context/LanguageContext'
 import { useTheme } from '../context/ThemeContext'
 import { languageNames } from '../i18n'
+import { cn } from '../lib/utils'
 
 export function Settings() {
   const { t, lang, setLang } = useLanguage()
   const { theme, setTheme } = useTheme()
+  const [saved, setSaved] = useState(false)
   const [settings, setSettings] = useState({
     refreshInterval: 5,
     dnssec: true,
@@ -31,6 +34,7 @@ export function Settings() {
 
   const updateSetting = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }))
+    setSaved(false)
   }
 
   const updateDns = (index, value) => {
@@ -38,39 +42,84 @@ export function Settings() {
       ...prev,
       upstreamDns: prev.upstreamDns.map((dns, i) => i === index ? value : dns)
     }))
+    setSaved(false)
   }
 
   const handleSave = () => {
-    alert(t('messages.saved'))
+    // Save settings to API
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
+  const handleReset = () => {
+    if (confirm(t('messages.confirmDelete'))) {
+      setSettings({
+        refreshInterval: 5,
+        dnssec: true,
+        conditionalForwarding: false,
+        queryLogging: true,
+        privacyLevel: 0,
+        blockingMode: 'null',
+        cacheSize: 10000,
+        minTtl: 300,
+        maxTtl: 86400,
+        logRetention: 365,
+        rateLimit: 1000,
+        upstreamDns: ['1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4'],
+        localDomain: 'local',
+        routerIp: '192.168.1.1'
+      })
+    }
   }
 
   return (
     <div className="space-y-6">
+      {/* Interface Settings */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Palette className="h-5 w-5" />
             {t('settings.interface')}
           </CardTitle>
+          <CardDescription>
+            {t('settings.interface')} - {t('settings.language')}, {t('settings.theme')}
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">{t('settings.language')}</label>
-            <Select value={lang} onChange={(e) => setLang(e.target.value)} className="w-40">
+        <CardContent className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <label className="text-sm font-medium">{t('settings.language')}</label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Select your preferred language
+              </p>
+            </div>
+            <Select value={lang} onChange={(e) => setLang(e.target.value)} className="w-full sm:w-48">
               {Object.entries(languageNames).map(([code, name]) => (
                 <option key={code} value={code}>{name}</option>
               ))}
             </Select>
           </div>
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">{t('settings.theme')}</label>
-            <Select value={theme} onChange={(e) => setTheme(e.target.value)} className="w-40">
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <label className="text-sm font-medium">{t('settings.theme')}</label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Choose dark or light mode
+              </p>
+            </div>
+            <Select value={theme} onChange={(e) => setTheme(e.target.value)} className="w-full sm:w-48">
               <option value="dark">{t('settings.dark')}</option>
               <option value="light">{t('settings.light')}</option>
             </Select>
           </div>
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">{t('settings.refreshInterval')}</label>
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <label className="text-sm font-medium">{t('settings.refreshInterval')}</label>
+              <p className="text-xs text-muted-foreground mt-1">
+                How often to refresh data
+              </p>
+            </div>
             <div className="flex items-center gap-2">
               <Input
                 type="number"
@@ -86,17 +135,21 @@ export function Settings() {
         </CardContent>
       </Card>
 
+      {/* DNS Settings */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5" />
             {t('settings.dns')}
           </CardTitle>
+          <CardDescription>
+            Configure upstream DNS servers and DNS options
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
+        <CardContent className="space-y-6">
+          <div className="space-y-3">
             <label className="text-sm font-medium">{t('settings.upstreamDns')}</label>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {settings.upstreamDns.map((dns, i) => (
                 <Input
                   key={i}
@@ -107,32 +160,35 @@ export function Settings() {
               ))}
             </div>
           </div>
-          <div className="flex items-center justify-between">
+          
+          <div className="flex items-center justify-between py-3 border-t">
             <div>
               <label className="text-sm font-medium">{t('settings.dnssec')}</label>
-              <p className="text-xs text-muted-foreground">{t('settings.dnssecDesc')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('settings.dnssecDesc')}</p>
             </div>
             <Switch checked={settings.dnssec} onChange={(v) => updateSetting('dnssec', v)} />
           </div>
-          <div className="flex items-center justify-between">
+          
+          <div className="flex items-center justify-between py-3 border-t">
             <div>
               <label className="text-sm font-medium">{t('settings.conditionalForwarding')}</label>
-              <p className="text-xs text-muted-foreground">{t('settings.conditionalForwardingDesc')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('settings.conditionalForwardingDesc')}</p>
             </div>
             <Switch checked={settings.conditionalForwarding} onChange={(v) => updateSetting('conditionalForwarding', v)} />
           </div>
+          
           {settings.conditionalForwarding && (
-            <div className="space-y-2 rounded-lg border bg-muted/50 p-4">
-              <div className="flex items-center gap-4">
-                <label className="w-32 text-sm">{t('settings.router')}</label>
+            <div className="space-y-3 rounded-xl border bg-muted/50 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <label className="w-32 text-sm font-medium">{t('settings.router')}</label>
                 <Input
                   value={settings.routerIp}
                   onChange={(e) => updateSetting('routerIp', e.target.value)}
                   className="flex-1"
                 />
               </div>
-              <div className="flex items-center gap-4">
-                <label className="w-32 text-sm">{t('settings.domain')}</label>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <label className="w-32 text-sm font-medium">{t('settings.domain')}</label>
                 <Input
                   value={settings.localDomain}
                   onChange={(e) => updateSetting('localDomain', e.target.value)}
@@ -144,27 +200,41 @@ export function Settings() {
         </CardContent>
       </Card>
 
+      {/* Blocking Settings */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
             {t('settings.blocking')}
           </CardTitle>
+          <CardDescription>
+            Configure how blocked domains are handled
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">{t('settings.blockingMode')}</label>
-            <Select value={settings.blockingMode} onChange={(e) => updateSetting('blockingMode', e.target.value)} className="w-48">
+        <CardContent className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <label className="text-sm font-medium">{t('settings.blockingMode')}</label>
+              <p className="text-xs text-muted-foreground mt-1">
+                How to respond to blocked queries
+              </p>
+            </div>
+            <Select 
+              value={settings.blockingMode} 
+              onChange={(e) => updateSetting('blockingMode', e.target.value)} 
+              className="w-full sm:w-48"
+            >
               <option value="null">{t('settings.blockingModes.null')}</option>
               <option value="ip">{t('settings.blockingModes.ip')}</option>
               <option value="nxdomain">{t('settings.blockingModes.nxdomain')}</option>
               <option value="nodata">{t('settings.blockingModes.nodata')}</option>
             </Select>
           </div>
-          <div className="flex items-center justify-between">
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-t">
             <div>
               <label className="text-sm font-medium">{t('settings.rateLimit')}</label>
-              <p className="text-xs text-muted-foreground">{t('settings.rateLimitDesc')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('settings.rateLimitDesc')}</p>
             </div>
             <div className="flex items-center gap-2">
               <Input
@@ -179,14 +249,18 @@ export function Settings() {
         </CardContent>
       </Card>
 
+      {/* Cache Settings */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Database className="h-5 w-5" />
             {t('settings.cache')}
           </CardTitle>
+          <CardDescription>
+            Configure DNS cache behavior
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium">{t('settings.cacheSize')}</label>
@@ -220,23 +294,33 @@ export function Settings() {
         </CardContent>
       </Card>
 
+      {/* Logging Settings */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5" />
             {t('settings.logging')}
           </CardTitle>
+          <CardDescription>
+            Configure query logging and privacy
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between py-3">
             <div>
               <label className="text-sm font-medium">{t('settings.queryLogging')}</label>
-              <p className="text-xs text-muted-foreground">{t('settings.queryLoggingDesc')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('settings.queryLoggingDesc')}</p>
             </div>
             <Switch checked={settings.queryLogging} onChange={(v) => updateSetting('queryLogging', v)} />
           </div>
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">{t('settings.logRetention')}</label>
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-t">
+            <div>
+              <label className="text-sm font-medium">{t('settings.logRetention')}</label>
+              <p className="text-xs text-muted-foreground mt-1">
+                How long to keep query logs
+              </p>
+            </div>
             <div className="flex items-center gap-2">
               <Input
                 type="number"
@@ -247,9 +331,19 @@ export function Settings() {
               <span className="text-sm text-muted-foreground">{t('settings.days')}</span>
             </div>
           </div>
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">{t('settings.privacyLevel')}</label>
-            <Select value={settings.privacyLevel} onChange={(e) => updateSetting('privacyLevel', parseInt(e.target.value))} className="w-48">
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-t">
+            <div>
+              <label className="text-sm font-medium">{t('settings.privacyLevel')}</label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Control what data is logged
+              </p>
+            </div>
+            <Select 
+              value={settings.privacyLevel} 
+              onChange={(e) => updateSetting('privacyLevel', parseInt(e.target.value))} 
+              className="w-full sm:w-48"
+            >
               <option value={0}>{t('settings.privacyLevels.showAll')}</option>
               <option value={1}>{t('settings.privacyLevels.hideClients')}</option>
               <option value={2}>{t('settings.privacyLevels.anonymous')}</option>
@@ -259,14 +353,24 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-2">
-        <Button variant="outline">
-          <RotateCcw className="mr-2 h-4 w-4" />
-          {t('settings.reset')}
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" onClick={handleReset}>
+          <RotateCcw className="h-4 w-4" />
+          <span className="ml-2">{t('settings.reset')}</span>
         </Button>
-        <Button onClick={handleSave}>
-          <Save className="mr-2 h-4 w-4" />
-          {t('settings.save')}
+        <Button onClick={handleSave} className={cn(saved && 'bg-green-600 hover:bg-green-700')}>
+          {saved ? (
+            <>
+              <Check className="h-4 w-4" />
+              <span className="ml-2">{t('messages.saved')}</span>
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              <span className="ml-2">{t('settings.save')}</span>
+            </>
+          )}
         </Button>
       </div>
     </div>

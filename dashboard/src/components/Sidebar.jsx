@@ -1,4 +1,4 @@
-import { Shield, LayoutDashboard, List, ListChecks, ListX, Settings, Globe, Users, Server, Network, Activity, FileText, Sun, Moon } from 'lucide-react'
+import { Shield, LayoutDashboard, List, ListChecks, ListX, Settings, Globe, Users, Server, Network, Activity, FileText, Sun, Moon, ChevronDown } from 'lucide-react'
 import { useLanguage } from '../context/LanguageContext'
 import { useTheme } from '../context/ThemeContext'
 import { cn } from '../lib/utils'
@@ -43,16 +43,18 @@ export function Sidebar({ currentPage, onNavigate }) {
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-card flex flex-col">
-      <div className="flex h-16 items-center gap-2 border-b px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+      {/* Logo */}
+      <div className="flex h-16 items-center gap-3 border-b px-6">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/25">
           <Shield className="h-5 w-5 text-primary-foreground" />
         </div>
         <div>
-          <span className="text-lg font-bold">TrBlockerAd</span>
+          <span className="text-lg font-bold tracking-tight">TrBlockerAd</span>
           <p className="text-[10px] text-muted-foreground">{t('status.networkProtection')}</p>
         </div>
       </div>
 
+      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-4 space-y-6">
         {navGroups.map((group, gi) => (
           <div key={gi}>
@@ -67,9 +69,9 @@ export function Sidebar({ currentPage, onNavigate }) {
                   key={id}
                   onClick={() => onNavigate(id)}
                   className={cn(
-                    'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all',
+                    'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
                     currentPage === id
-                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
                       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                   )}
                 >
@@ -82,29 +84,42 @@ export function Sidebar({ currentPage, onNavigate }) {
         ))}
       </nav>
 
+      {/* Footer */}
       <div className="border-t p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center justify-between gap-2">
+          <div className="relative flex-1">
+            <Globe className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <select
               value={lang}
               onChange={(e) => setLang(e.target.value)}
-              className="bg-card text-sm text-foreground border border-input rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer [&>option]:bg-card [&>option]:text-foreground"
+              className={cn(
+                'w-full h-9 appearance-none rounded-lg border border-input bg-background pl-9 pr-8 text-sm',
+                'transition-all duration-200',
+                'hover:border-primary/50',
+                'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
+                'cursor-pointer',
+                '[&>option]:bg-popover [&>option]:text-popover-foreground'
+              )}
             >
               {Object.entries(languageNames).map(([code, name]) => (
                 <option key={code} value={code}>{name}</option>
               ))}
             </select>
+            <ChevronDown className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           </div>
           <button
             onClick={toggleTheme}
-            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-accent transition-colors"
+            className={cn(
+              'flex h-9 w-9 items-center justify-center rounded-lg border border-input',
+              'transition-all duration-200',
+              'hover:bg-accent hover:border-primary/50'
+            )}
             title={theme === 'dark' ? t('settings.light') : t('settings.dark')}
           >
             {theme === 'dark' ? (
-              <Sun className="h-4 w-4 text-muted-foreground" />
+              <Sun className="h-4 w-4 text-yellow-500" />
             ) : (
-              <Moon className="h-4 w-4 text-muted-foreground" />
+              <Moon className="h-4 w-4 text-blue-500" />
             )}
           </button>
         </div>

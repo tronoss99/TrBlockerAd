@@ -1,137 +1,240 @@
 import { useState, useMemo } from 'react'
-import { Search, RefreshCw, CheckCircle, XCircle, Clock, ArrowRight, Download, Filter } from 'lucide-react'
+import { Search, RefreshCw, CheckCircle, XCircle, Clock, ArrowRight, Download, AlertCircle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
+import { Select } from '../components/ui/Select'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table'
+import { Skeleton } from '../components/ui/Skeleton'
 import { useLanguage } from '../context/LanguageContext'
 import { useQueryLog } from '../hooks/usePihole'
 
-const STATUS_MAP = {
-  1: { key: 'blocked', variant: 'destructive', icon: XCircle },
-  2: { key: 'allowed', variant: 'success', icon: CheckCircle },
-  3: { key: 'cached', variant: 'default', icon: Clock },
-  4: { key: 'forwarded', variant: 'secondary', icon: ArrowRight }
+const STATUS_CONFIG = {
+  blocked: { variant: 'destructive', icon: XCircle, color: 'text-red-500' },
+  allowed: { variant: 'success', icon: CheckCircle, color: 'text-green-500' },
+  cached: { variant: 'info', icon: Clock, color: 'text-blue-500' },
+  forwarded: { variant: 'secondary', icon: ArrowRight, color: 'text-gray-500' },
+  // Pi-hole v6 status codes
+  GRAVITY: { variant: 'destructive', icon: XCircle, color: 'text-red-500', label: 'blocked' },
+  FORWARDED: { variant: 'success', icon: ArrowRight, color: 'text-green-500', label: 'forwarded' },
+  CACHE: { variant: 'info', icon: Clock, color: 'text-blue-500', label: 'cached' },
+  REGEX: { variant: 'destructive', icon: XCircle, color: 'text-red-500', label: 'blocked' },
+  DENYLIST: { variant: 'destructive', icon: XCircle, color: 'text-red-500', label: 'blocked' },
+  EXTERNAL_BLOCKED: { variant: 'destructive', icon: XCircle, color: 'text-red-500', label: 'blocked' },
+  ALLOWLIST: { variant: 'success', icon: CheckCircle, color: 'text-green-500', label: 'allowed' }
+}
+
+function formatTime(timestamp) {
+  if (!timestamp) return '-'
+  
+  // Handle different timestamp formats
+  let date
+  if (typeof timestamp === 'number') {
+    // Unix timestamp (seconds or milliseconds)
+    date = new Date(timestamp < 10000000000 ? timestamp * 1000 : timestamp)
+  } else if (typeof timestamp === 'string') {
+    date = new Date(timestamp)
+  } else {
+    return '-'
+  }
+  
+  if (isNaN(date.getTime())) return '-'
+  
+  return date.toLocaleTimeString([], { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
+function getStatusConfig(status) {
+  if (!status) return STATUS_CONFIG.allowed
+  const upperStatus = String(status).toUpperCase()
+  return STATUS_CONFIG[upperStatus] || STATUS_CONFIG[status] || STATUS_CONFIG.allowed
 }
 
 export function QueryLog() {
   const { t } = useLanguage()
-  const { queries, loading, refresh } = useQueryLog()
+  const { queries, loading, error, refresh } = useQueryLog(200)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const filtered = useMemo(() => {
     let result = queries
+    
     if (search) {
       const term = search.toLowerCase()
       result = result.filter(q =>
-        q[2]?.toLowerCase().includes(term) ||
-        q[3]?.toLowerCase().includes(term) ||
-        q[1]?.toLowerCase().includes(term)
+        q.domain?.toLowerCase().includes(term) ||
+        q.client?.toLowerCase().includes(term) ||
+        q.type?.toLowerCase().includes(term)
       )
     }
+    
     if (statusFilter !== 'all') {
-      const statusCode = { blocked: 1, allowed: 2, cached: 3, forwarded: 4 }[statusFilter]
-      result = result.filter(q => q[4] === statusCode)
+      result = result.filter(q => {
+        const status = String(q.status).toLowerCase()
+        if (statusFilter === 'blocked') {
+          return status.includes('block') || status.includes('gravity') || status.includes('deny') || status.includes('regex')
+        }
+        if (statusFilter === 'allowed') {
+          return status.includes('allow') || status === 'forwarded' || status === 'cache'
+        }
+        if (statusFilter === 'cached') {
+          return status.includes('cache')
+        }
+        if (statusFilter === 'forwarded') {
+          return status.includes('forward')
+        }
+        return true
+      })
     }
+    
     return result
   }, [queries, search, statusFilter])
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await refresh()
+    setIsRefreshing(false)
+  }
+
   const exportData = () => {
-    const csv = filtered.map(q => `${new Date(q[0] * 1000).toISOString()},${q[1]},${q[2]},${q[3]},${q[4]}`).join('\n')
+    const csv = filtered.map(q => 
+      `${formatTime(q.timestamp)},${q.type},${q.domain},${q.client},${q.status}`
+    ).join('\n')
     const blob = new Blob([`Time,Type,Domain,Client,Status\n${csv}`], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'query-log.csv'
+    a.download = `query-log-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg font-semibold text-foreground">{t('queryLog.title')}</CardTitle>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle className="text-xl">{t('queryLog.title')}</CardTitle>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 sm:flex-none">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder={t('queryLog.search')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-64 pl-8"
+              className="w-full pl-9 sm:w-64"
             />
           </div>
-          <select
+          <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            className="w-32"
           >
             <option value="all">{t('queryLog.filter')}</option>
             <option value="blocked">{t('queryLog.blocked')}</option>
             <option value="allowed">{t('queryLog.allowed')}</option>
             <option value="cached">{t('queryLog.cached')}</option>
             <option value="forwarded">{t('queryLog.forwarded')}</option>
-          </select>
+          </Select>
           <Button variant="outline" size="icon" onClick={exportData} title={t('queryLog.export')}>
             <Download className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={refresh} title={t('queryLog.refresh')}>
-            <RefreshCw className="h-4 w-4" />
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={handleRefresh} 
+            disabled={isRefreshing}
+            title={t('queryLog.refresh')}
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium">{t('queryLog.time')}</th>
-                <th className="px-4 py-3 text-left font-medium">{t('queryLog.type')}</th>
-                <th className="px-4 py-3 text-left font-medium">{t('queryLog.domain')}</th>
-                <th className="px-4 py-3 text-left font-medium">{t('queryLog.client')}</th>
-                <th className="px-4 py-3 text-left font-medium">{t('queryLog.status')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                    {t('status.loading')}
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                    {t('queryLog.noResults')}
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((query, i) => {
-                  const status = STATUS_MAP[query[4]] || STATUS_MAP[2]
-                  const Icon = status.icon
-                  return (
-                    <tr key={i} className="border-b last:border-0 hover:bg-muted/50">
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {new Date(query[0] * 1000).toLocaleTimeString()}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant="secondary">{query[1]}</Badge>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs">{query[2]}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{query[3]}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={status.variant} className="gap-1">
-                          <Icon className="h-3 w-3" />
-                          {t(`queryLog.${status.key}`)}
-                        </Badge>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+        {error ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+            <span>{t('status.error')}: {error}</span>
+          </div>
+        ) : (
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead>{t('queryLog.time')}</TableHead>
+                  <TableHead>{t('queryLog.type')}</TableHead>
+                  <TableHead>{t('queryLog.domain')}</TableHead>
+                  <TableHead>{t('queryLog.client')}</TableHead>
+                  <TableHead>{t('queryLog.status')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  Array.from({ length: 10 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-12" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      {t('queryLog.noResults')}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filtered.map((query, i) => {
+                    const statusConfig = getStatusConfig(query.status)
+                    const StatusIcon = statusConfig.icon
+                    const statusLabel = statusConfig.label || query.status
+                    
+                    return (
+                      <TableRow key={i}>
+                        <TableCell className="text-muted-foreground font-mono text-xs">
+                          {formatTime(query.timestamp)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="font-mono">
+                            {query.type || 'A'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs max-w-[300px] truncate">
+                          {query.domain || '-'}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {query.client || '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusConfig.variant} className="gap-1">
+                            <StatusIcon className="h-3 w-3" />
+                            {t(`queryLog.${statusLabel}`) || statusLabel}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+        
+        {!loading && !error && (
+          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+            <span>
+              {t('queryLog.showing') || 'Showing'} {filtered.length} {t('queryLog.of') || 'of'} {queries.length} {t('queryLog.queries') || 'queries'}
+            </span>
+            <span>
+              {t('status.lastUpdate')}: {new Date().toLocaleTimeString()}
+            </span>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
