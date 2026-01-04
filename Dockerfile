@@ -10,6 +10,8 @@ ENV DNSSEC=true
 ENV QUERY_LOGGING=true
 ENV WEBTHEME=default-dark
 ENV FTLCONF_webserver_port=8080
+ENV FTLCONF_webserver_api_localAPIauth=false
+ENV WEBPASSWORD=
 
 COPY pihole/adlists.list /etc/pihole/adlists.list
 COPY pihole/custom.list /etc/pihole/custom.list
@@ -25,9 +27,6 @@ COPY nginx-pihole.conf /etc/nginx/http.d/default.conf
 
 # Create nginx directories
 RUN mkdir -p /run/nginx /var/log/nginx
-
-# Add nginx startup to bashrc so it runs when container starts
-RUN echo 'pgrep nginx > /dev/null || nginx' >> /etc/bash/bashrc
 
 # Create a simple cron job to ensure nginx is running
 RUN echo '* * * * * pgrep nginx > /dev/null || nginx' > /etc/crontabs/root
