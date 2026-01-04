@@ -24,8 +24,8 @@ RUN rm -rf /var/www/html/index.html /var/www/html/index.php /var/www/html/pihole
 # Copy our dashboard to root
 COPY dashboard/dist/ /var/www/html/
 
-# Fix lighttpd config to serve our static files
-RUN echo 'mimetype.assign += (".js" => "application/javascript", ".css" => "text/css", ".svg" => "image/svg+xml")' >> /etc/lighttpd/lighttpd.conf
+# Copy lighttpd config for MIME types
+COPY nginx-pihole.conf /etc/lighttpd/conf-enabled/99-trblocker.conf
 
 EXPOSE 53/tcp 53/udp 80/tcp
 
