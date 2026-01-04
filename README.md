@@ -124,18 +124,44 @@ ports:
 | `QUERY_LOGGING` | `true` | Query logging |
 | `LOG_RETENTION_DAYS` | `365` | Days to keep logs |
 
-### 📱 Configure Your Devices
+### 📱 Configure Your Network
 
-Set your device's DNS to point to the server IP where TrBlockerAd is running.
+#### Option A: Router DNS (Best if available)
+If your router allows changing DNS settings:
+1. Access your router admin panel (usually `192.168.1.1`)
+2. Find DNS settings (usually in WAN/Internet or DHCP settings)
+3. Set Primary DNS to your TrBlockerAd server IP
+4. All devices will be protected automatically
 
-**Per Device:**
+#### Option B: NAS as DHCP Server (If router doesn't allow DNS change)
+If your ISP router doesn't allow DNS changes, you can use your NAS as DHCP server:
+
+**Synology:**
+1. Control Panel → DHCP Server → Enable DHCP
+2. Set Primary DNS to the NAS IP (where TrBlockerAd runs)
+3. Disable DHCP on your router
+4. All devices will get the NAS as DNS automatically
+
+**QNAP:**
+1. Control Panel → Network → DHCP Server → Enable
+2. Set DNS Server to NAS IP
+3. Disable DHCP on router
+
+**Unraid:**
+1. Settings → Network Settings → Enable DHCP
+2. Set DNS to Unraid IP
+3. Disable router DHCP
+
+**Important:** Only ONE device should run DHCP on your network. Disable it on the router before enabling on NAS.
+
+#### Option C: Per Device Configuration
+Configure DNS manually on each device:
+
 - **Windows**: Settings → Network → Change adapter options → Properties → IPv4 → DNS: `YOUR_SERVER_IP`
 - **macOS**: System Preferences → Network → Advanced → DNS → Add `YOUR_SERVER_IP`
 - **iOS**: Settings → Wi-Fi → (i) → Configure DNS → Manual → `YOUR_SERVER_IP`
 - **Android**: Settings → Network → Private DNS → `YOUR_SERVER_IP`
-
-**Router (Best Option):**
-If your router allows it, set DNS to `YOUR_SERVER_IP` and all devices will be protected automatically.
+- **Linux**: Edit `/etc/resolv.conf` or use NetworkManager
 
 ### 🆘 Troubleshooting
 
@@ -277,18 +303,44 @@ ports:
 | `QUERY_LOGGING` | `true` | Registro de consultas |
 | `LOG_RETENTION_DAYS` | `365` | Días de retención de logs |
 
-### 📱 Configura tus Dispositivos
+### 📱 Configura tu Red
 
-Configura el DNS de tu dispositivo para que apunte a la IP del servidor donde está TrBlockerAd.
+#### Opción A: DNS en el Router (Mejor si está disponible)
+Si tu router permite cambiar la configuración DNS:
+1. Accede al panel de administración del router (normalmente `192.168.1.1`)
+2. Busca la configuración DNS (normalmente en WAN/Internet o configuración DHCP)
+3. Configura el DNS Primario con la IP de tu servidor TrBlockerAd
+4. Todos los dispositivos estarán protegidos automáticamente
 
-**Por Dispositivo:**
+#### Opción B: NAS como Servidor DHCP (Si el router no permite cambiar DNS)
+Si el router de tu ISP no permite cambiar el DNS, puedes usar tu NAS como servidor DHCP:
+
+**Synology:**
+1. Panel de Control → Servidor DHCP → Habilitar DHCP
+2. Configura el DNS Primario con la IP del NAS (donde corre TrBlockerAd)
+3. Desactiva el DHCP en tu router
+4. Todos los dispositivos recibirán el NAS como DNS automáticamente
+
+**QNAP:**
+1. Panel de Control → Red → Servidor DHCP → Habilitar
+2. Configura el Servidor DNS con la IP del NAS
+3. Desactiva el DHCP del router
+
+**Unraid:**
+1. Settings → Network Settings → Habilitar DHCP
+2. Configura DNS con la IP de Unraid
+3. Desactiva el DHCP del router
+
+**Importante:** Solo UN dispositivo debe ejecutar DHCP en tu red. Desactiva el DHCP del router antes de habilitarlo en el NAS.
+
+#### Opción C: Configuración por Dispositivo
+Configura el DNS manualmente en cada dispositivo:
+
 - **Windows**: Configuración → Red → Cambiar opciones del adaptador → Propiedades → IPv4 → DNS: `IP_DEL_SERVIDOR`
 - **macOS**: Preferencias del Sistema → Red → Avanzado → DNS → Añadir `IP_DEL_SERVIDOR`
 - **iOS**: Ajustes → Wi-Fi → (i) → Configurar DNS → Manual → `IP_DEL_SERVIDOR`
 - **Android**: Ajustes → Red → DNS Privado → `IP_DEL_SERVIDOR`
-
-**Router (Mejor Opción):**
-Si tu router lo permite, configura el DNS a `IP_DEL_SERVIDOR` y todos los dispositivos estarán protegidos automáticamente.
+- **Linux**: Edita `/etc/resolv.conf` o usa NetworkManager
 
 ### 🆘 Solución de Problemas
 
