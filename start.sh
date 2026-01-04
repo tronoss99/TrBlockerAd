@@ -4,4 +4,4 @@
 nginx
 
 # Execute the original Pi-hole entrypoint
-exec /s6-init
+exec /init
