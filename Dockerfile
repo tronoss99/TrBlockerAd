@@ -23,12 +23,14 @@ COPY dashboard/dist/ /var/www/trblocker/
 # Copy nginx config
 COPY nginx-pihole.conf /etc/nginx/http.d/default.conf
 
-# Create startup script that starts nginx then Pi-hole
-RUN printf '#!/bin/bash\nnginx\nexec /s6-init\n' > /start-trblocker.sh && chmod +x /start-trblocker.sh
+# Create s6 service for nginx
+RUN mkdir -p /etc/s6-overlay/s6-rc.d/nginx/dependencies.d && \
+    echo "longrun" > /etc/s6-overlay/s6-rc.d/nginx/type && \
+    printf '#!/command/execlineb -P\nnginx -g "daemon off;"\n' > /etc/s6-overlay/s6-rc.d/nginx/run && \
+    chmod +x /etc/s6-overlay/s6-rc.d/nginx/run && \
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/nginx
 
 EXPOSE 53/tcp 53/udp 80/tcp
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD dig +norecurse +retry=0 @127.0.0.1 pi.hole || exit 1
-
-ENTRYPOINT ["/start-trblocker.sh"]
